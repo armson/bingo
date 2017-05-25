@@ -4,22 +4,18 @@ import(
     "crypto/cipher"
     "crypto/aes"
 )
-
-type Aes struct{
-    length int
-    iv []byte
+type myAes struct{
+    length  int
+    iv      []byte
+}
+var Aes *myAes = &myAes{
+    length:32,
+    iv:[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 }
 
-func NewAes() (*Aes){
-    ae := new(Aes)
-    ae.length = 32
-    ae.iv = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-    return ae
-}
-
-func (this *Aes) Encode(plainText, key []byte) (string) {
+func (this *myAes) Encode(plainText, key []byte) (string) {
     key = KeyPadding(key, this.length)
-    block, err := aes.NewCipher(key);
+    block, err := aes.NewCipher(key)
     if err != nil {
         panic(err)
     }
@@ -28,27 +24,24 @@ func (this *Aes) Encode(plainText, key []byte) (string) {
 
     cipherText := make([]byte, len(plainText))
     mode.CryptBlocks(cipherText, plainText)
-    return Base64Encode(cipherText)
+    return Base64.Encode(cipherText)
 }
 
 
-func (this *Aes) Decode(crypted string, key []byte) []byte {
+func (this *myAes) Decode(cipherText string, key []byte) []byte {
+    cipherByte := Base64.Decode(cipherText)
+    if len(cipherByte) < aes.BlockSize {
+        panic("ciphertext too short")
+    }
+    if len(cipherByte)%aes.BlockSize != 0 {
+        panic("ciphertext is not a multiple of the block size")
+    }
     key = KeyPadding(key, this.length)
     block, err := aes.NewCipher(key);
     if err != nil {
         panic(err)
     }
-
-    cipherText :=Base64Decode(crypted)
-    if len(cipherText) < aes.BlockSize {
-        panic("ciphertext too short")
-    }
-    if len(cipherText)%aes.BlockSize != 0 {
-        panic("ciphertext is not a multiple of the block size")
-    }
-
     mode := cipher.NewCBCDecrypter(block, this.iv)
-    mode.CryptBlocks(cipherText, cipherText)
-    cipherText = PKCS5UnPadding(cipherText)
-    return cipherText
+    mode.CryptBlocks(cipherByte, cipherByte)
+    return PKCS5UnPadding(cipherByte)
 }

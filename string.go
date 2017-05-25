@@ -1,12 +1,17 @@
-package fm
+package bingo
 
 import(
     "bytes"
     "strconv"
     "net/url"
+    "time"
+    "math/rand"
 )
 
-func StringJoin(args ...string) (string) {
+type myString string
+var String *myString
+
+func (this *myString) Join(args ...string) string {
     buf := bytes.Buffer{}
     for _,v := range args {
         buf.WriteString(v)
@@ -14,25 +19,41 @@ func StringJoin(args ...string) (string) {
     return buf.String()
 }
 
-func StringToInt(s string) int64 {
+func (this *myString) Int(s string) int64 {
     i, err := strconv.ParseInt(s, 10, 64)
     if err != nil {
         return 0
     } 
     return i
 }
-func IntToString(i int64) string {
-    return strconv.FormatInt(i, 10)
+
+func (this *myString) Len(s string) int64 {
+    return int64(len([]byte(s)))
 }
 
-func Escape(code string) string {
-    return url.QueryEscape(code)
+func (this *myString) Escape(s string) string {
+    return url.QueryEscape(s)
 }
-func UnEscape(code string) string {
-    s, err := url.QueryUnescape(code)
+
+func (this *myString) UnEscape(s string) string {
+    s, err := url.QueryUnescape(s)
     if err != nil {
         return ""
     }
     return s
 }
+
+func (this *myString) Rand(size int) string {
+    chars := "23456789abcdefghjkmnpqrstABCDEFGHJKMNPQRST"
+    b := []byte(chars)
+    rand.Seed(time.Now().UnixNano())
+    r := make([]byte, size)
+    for i := 0; i < size; i++ {
+        r[i] = chars[rand.Intn(len(b))]
+    }
+    return string(r)
+}
+
+
+
 

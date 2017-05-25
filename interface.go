@@ -1,4 +1,4 @@
-package fm
+package bingo
 
 func InterfaceToInt64(a interface{}) (int64) {
     switch a.(type) {

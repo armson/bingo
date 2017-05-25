@@ -4,11 +4,14 @@ import(
     "encoding/base64"
 )
 
-func Base64Encode(plainText []byte) string {
+type myBase64 struct{}
+var Base64 *myBase64 = &myBase64{}
+
+func (this *myBase64) Encode(plainText []byte) string {
     return base64.StdEncoding.EncodeToString(plainText)
 }
 
-func Base64Decode(crypted string) []byte {
+func (this *myBase64) Decode(crypted string) []byte {
     plainText, err := base64.StdEncoding.DecodeString(crypted)
     if err != nil {
         panic(err)

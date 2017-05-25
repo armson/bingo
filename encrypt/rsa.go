@@ -7,13 +7,10 @@ import(
     "crypto/x509"
 )
 
-type Rsa struct{}
+type myRsa struct{}
+var Rsa *myRsa = &myRsa{}
 
-func NewRsa() (*Rsa){
-    return new(Rsa)
-}
-
-func (this *Rsa) Encode(plainText, publicKey []byte) (string) {
+func (this *myRsa) Encode(plainText, publicKey []byte) (string) {
     block, _ := pem.Decode(publicKey)
     if block == nil {
         panic("public key error")
@@ -27,11 +24,11 @@ func (this *Rsa) Encode(plainText, publicKey []byte) (string) {
     if err != nil {
         panic(err)
     }
-    return Base64Encode(cipherText)
+    return Base64.Encode(cipherText)
 }
 
 
-func (this *Rsa) Decode(cipherText string, privateKey []byte) []byte {
+func (this *myRsa) Decode(cipherText string, privateKey []byte) []byte {
     block, _ := pem.Decode(privateKey)
     if block == nil {
         panic("private key error")
@@ -40,7 +37,7 @@ func (this *Rsa) Decode(cipherText string, privateKey []byte) []byte {
     if err != nil {
         panic(err)
     }
-    crypted := Base64Decode(cipherText)
+    crypted := Base64.Decode(cipherText)
     plainText , err := rsa.DecryptPKCS1v15(rand.Reader, priv, crypted)
     if err != nil {
         panic(err)

@@ -3,37 +3,52 @@ package db
 import (
     "database/sql"
     _ "github.com/go-sql-driver/mysql"
-    "github.com/fm"
+    "github.com/armson/bingo"
     "fmt"
 )
 
-var Mysql Db = Db{}
-type Tx struct{}
+type myMysql struct{
+    group   string
+    dsn     string
+    db      *sql.DB
+}
+var MysqlGroup map[string]*myMysql = map[string]*myMysql{}
+var Mysql *myMysql = &myMysql{}
 
-func (this *Db) Register(dsn string) {
-    this.driver = "mysql"
-    this.dsn = dsn
-
-    var err error
-    this.db, err = sql.Open(Mysql.driver, Mysql.dsn)
+func (this *myMysql) Register(group, host, username, passwd, dbname, port, charset string){
+    dsn := bingo.String.Join(username,":",passwd,"@tcp(",host,":",port,")/",dbname,"?charset=",charset)
+    db, err := sql.Open("mysql", dsn)
     if err != nil {
         panic(err.Error())
     }
+    if group == "default" {
+        this.group = group
+        this.dsn = dsn
+        this.db = db
+    }
+    MysqlGroup[group] = &myMysql{group,dsn,db}
 }
 
-func (this *Db) SetMaxIdleConns(maxIdleConns int64) {
+func (this *myMysql) Use(group string) *myMysql {
+    if v , ok := MysqlGroup[group]; ok {
+        return v
+    }
+    return MysqlGroup["default"]
+}
+
+func (this *myMysql) SetMaxIdleConns(maxIdleConns int64) {
     this.db.SetMaxIdleConns(int(maxIdleConns))
 }
 
-func (this *Db) SetMaxOpenConns(maxOpenConns int64) {
+func (this *myMysql) SetMaxOpenConns(maxOpenConns int64) {
     this.db.SetMaxOpenConns(int(maxOpenConns))
 }
 
-func (this Db) String() string {
-    return fmt.Sprintf("%s[%s][%+v]", this.driver, this.dsn, this.db)
+func (this myMysql) String() string {
+    return fmt.Sprintf("%s[%s][%+v]", this.group, this.dsn, this.db)
 }
 
-func (this *Db) Query(sql string)  []map[string]string {
+func (this *myMysql) Query(sql string)  []map[string]string {
     //fmt.Println(sql)
     rows, err := this.db.Query(sql)
     if err != nil {
@@ -42,7 +57,7 @@ func (this *Db) Query(sql string)  []map[string]string {
     return this.queryFormat(rows)
 }
 
-func (this *Db) Fetch(sql string) (map[string]string) {
+func (this *myMysql) Fetch(sql string) (map[string]string) {
     rows := this.Query(sql)
     if len(rows) > 0 {
         return rows[0]
@@ -50,7 +65,7 @@ func (this *Db) Fetch(sql string) (map[string]string) {
     return nil
 }
 
-func (this *Db) Excute(sql string) (lastInsertId, afftectedRows int64) {
+func (this *myMysql) Excute(sql string) (lastInsertId, afftectedRows int64) {
     fmt.Printf("%s\n\n", sql)
     res, err := this.db.Exec(sql)
     if err != nil {
@@ -68,7 +83,7 @@ func (this *Db) Excute(sql string) (lastInsertId, afftectedRows int64) {
 }
 
 // Prepare的性能低于Excute
-func (this *Db) Prepare(sql string, args ...interface{}) (lastInsertId, afftectedRows int64){
+func (this *myMysql) Prepare(sql string, args ...interface{}) (lastInsertId, afftectedRows int64){
     stm, err := this.db.Prepare(sql)
     if err != nil {
         panic(err.Error())
@@ -89,7 +104,7 @@ func (this *Db) Prepare(sql string, args ...interface{}) (lastInsertId, afftecte
     return
 }
 
-func (this *Db) Update(table string, data map[string]string, where string) (afftectedRows int64){
+func (this *myMysql) Update(table string, data map[string]string, where string) (afftectedRows int64){
     sql := []string{"UPDATE ",table," SET "}
     for k, v := range data {
         sql = append(sql, k,"='",v,"'"," , ")
@@ -98,16 +113,16 @@ func (this *Db) Update(table string, data map[string]string, where string) (afft
     if where != "" {
         sql = append(sql, " WHERE ", where)
     }
-    _, afftectedRows = this.Excute(fm.StringJoin(sql...))
+    _, afftectedRows = this.Excute(bingo.String.Join(sql...))
     return
 }
-func (this *Db) Insert(table string, data map[string]string) (lastInsertId, afftectedRows int64){
+func (this *myMysql) Insert(table string, data map[string]string) (lastInsertId, afftectedRows int64){
     sql := []string{"INSERT INTO ",table," SET "}
     for k, v := range data {
         sql = append(sql, k,"='",v,"'"," , ")
     }
     sql = sql[:len(sql)-1]
-    lastInsertId, afftectedRows = this.Excute(fm.StringJoin(sql...))
+    lastInsertId, afftectedRows = this.Excute(bingo.String.Join(sql...))
     return
 }
 //用法 
@@ -117,7 +132,7 @@ func (this *Db) Insert(table string, data map[string]string) (lastInsertId, afft
 // }
 // tx.Commit()
 
-func (this *Db) Begin() *sql.Tx {
+func (this *myMysql) Begin() *sql.Tx {
     tx , err := this.db.Begin()
     if err != nil {
         panic(err.Error())
@@ -125,7 +140,7 @@ func (this *Db) Begin() *sql.Tx {
     return tx
 }
 
-func (this *Db) queryFormat(rows *sql.Rows) (data []map[string]string) {
+func (this *myMysql) queryFormat(rows *sql.Rows) (data []map[string]string) {
     columns, _ := rows.Columns()
     scanArgs := make([]interface{}, len(columns))
     values := make([]interface{}, len(columns))
@@ -147,11 +162,11 @@ func (this *Db) queryFormat(rows *sql.Rows) (data []map[string]string) {
 
 
 
-func (this *Db) Close() error {
+func (this *myMysql) Close() error {
     return this.db.Close()
 }
 
-func (this *Db) Db() *sql.DB {
+func (this *myMysql) Db() *sql.DB {
     return this.db
 }
 
