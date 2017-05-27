@@ -12,35 +12,35 @@ func (this *myJson) Encode(v interface{}) []byte {
     if err != nil { return []byte{} }
     return b
 }
-func (this *myJson) DecodeMap(data []byte) (map[string]interface{}, error) {
-    var m map[string]interface{}
-    err := json.Unmarshal(data, &m)
-    if err != nil { return nil,err }
-    return m,nil
+func (this *myJson) DecodeMap(data []byte) (m map[string]interface{}, err error) {
+    return m, json.Unmarshal(data, &m)
 }
-func (this *myJson) DecodeString(data []byte) (string, error) {
-    var s string
-    err := json.Unmarshal(data, &s)
-    if err != nil { return "",err }
-    return s, nil
+func (this *myJson) DecodeString(data []byte) (s string, err error) {
+    return s, json.Unmarshal(data, &s)
 }
-func (this *myJson) DecodeInt(data []byte) (int, error) {
-    var i int
-    err := json.Unmarshal(data, &i)
-    if err != nil { return 0, err }
-    return i,nil
+func (this *myJson) DecodeInt(data []byte) (i int, err error) {
+    return i,json.Unmarshal(data, &i)
 }
-func (this *myJson) DecodeFloat64(data []byte) (float64, error) {
-    var f float64
-    err := json.Unmarshal(data, &f)
-    if err != nil { return 0,err }
-    return f,nil
+func (this *myJson) DecodeFloat(data []byte) (f float64, err error) {
+    return f,json.Unmarshal(data, &f)
 }
-func (this *myJson) DecodeBool(data []byte) (bool, error) {
-    var b bool
-    err := json.Unmarshal(data, &b)
-    if err != nil { return false ,err }
-    return b,nil
+func (this *myJson) DecodeBool(data []byte) (b bool, err error) {
+    return b,json.Unmarshal(data, &b)
+}
+func (this *myJson) DecodeStrings(data []byte) (s []string, err error) {
+    return s, json.Unmarshal(data, &s)
+}
+func (this *myJson) DecodeInts(data []byte) (i []int, err error) {
+    return i,json.Unmarshal(data, &i)
+}
+func (this *myJson) DecodeFloats(data []byte) (f []float64, err error) {
+    return f,json.Unmarshal(data, &f)
+}
+func (this *myJson) DecodeBools(data []byte) (b []bool, err error) {
+    return b,json.Unmarshal(data, &b)
+}
+func (this *myJson) DecodeInterfaces(data []byte) (i []interface{}, err error) {
+    return i,json.Unmarshal(data, &i)
 }
 
 

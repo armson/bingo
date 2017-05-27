@@ -4,10 +4,10 @@ import(
     "time"
 )
 
-type myTime string
-var Time *myTime
+type myDuration string
+var Duration *myDuration
 
-func (this *myTime) ParseDuration(s string) time.Duration {
+func (this *myDuration) Parse(s string) time.Duration {
     duration, err := time.ParseDuration(s)
     if err != nil {
         panic(err.Error())

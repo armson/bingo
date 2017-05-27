@@ -27,10 +27,6 @@ func (this *myString) Int(s string) int64 {
     return i
 }
 
-func (this *myString) Len(s string) int64 {
-    return int64(len([]byte(s)))
-}
-
 func (this *myString) Escape(s string) string {
     return url.QueryEscape(s)
 }
