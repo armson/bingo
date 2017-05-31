@@ -59,7 +59,6 @@ func (this *HttpServer) Cookies(cookies []*http.Cookie) *HttpServer {
     this.request.Header.Add("Cookie", bingo.Slice.Join(s,";"))
     return this
 }
-
 func (this *HttpServer) SetTransport(transport http.RoundTripper) *HttpServer {
     this.setting.Transport = transport
     return this
