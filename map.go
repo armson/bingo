@@ -24,3 +24,19 @@ func (this *myMap) HttpBuildQuery(params map[string][]string) (s string) {
     return
 }
 
+func (this *myMap) String(params map[string]string) (s string) {
+    if len(params) < 1 { return }
+    buf := bytes.Buffer{}
+    for k, arg := range params {
+            buf.WriteString(k)
+            buf.WriteByte(':')
+            buf.WriteString(arg)
+            buf.WriteByte(',')
+    }
+    s = buf.String()
+    s = s[0 : len(s)-1]
+    return
+}
+
+
+

@@ -19,12 +19,20 @@ func (this *myString) Join(args ...string) string {
     return buf.String()
 }
 
+
 func (this *myString) Int(s string) int64 {
     i, err := strconv.ParseInt(s, 10, 64)
     if err != nil {
         return 0
     } 
     return i
+}
+func (this *myString) Bool(s string) bool {
+    value, err := strconv.ParseBool(s)
+    if err != nil {
+        return false
+    } 
+    return value
 }
 
 func (this *myString) Escape(s string) string {
