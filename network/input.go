@@ -3,7 +3,7 @@ package network
 import(
     "strings"
     "strconv"
-    "github.com/armson/bingo"
+    "github.com/armson/bingo/utils"
 )
 
 var requestMethod []string = []string{"GET","POST","PUT","DELETE","HEAD","OPTIONS"}
@@ -55,7 +55,7 @@ func (this *work) GetInt(args ...interface{}) int64 {
         return i
     }
     if len(args) > 1 {
-        bingo.InterfaceToInt64(args[1]) 
+        utils.Interface.Int(args[1]) 
     }
     return 0
 }

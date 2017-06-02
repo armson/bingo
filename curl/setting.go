@@ -5,7 +5,7 @@ import(
     "crypto/tls"
     "time"
     "fmt"
-    "github.com/armson/bingo"
+    "github.com/armson/bingo/utils"
 )
 
 func SetDefaultSettings(setting Settings) {
@@ -56,7 +56,7 @@ func (this *HttpServer) Cookies(cookies []*http.Cookie) *HttpServer {
     for _,cookie := range cookies { 
         s = append(s, cookie.String())
     }
-    this.request.Header.Add("Cookie", bingo.Slice.Join(s,";"))
+    this.request.Header.Add("Cookie", utils.Slice.Join(s,";"))
     return this
 }
 func (this *HttpServer) SetTransport(transport http.RoundTripper) *HttpServer {

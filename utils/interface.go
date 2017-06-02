@@ -1,6 +1,9 @@
 package utils
 
-func InterfaceToInt64(a interface{}) (int64) {
+type myInterface string
+var Interface *myInterface
+
+func (this *myInterface) Int(a interface{}) (int64) {
     switch a.(type) {
         case int64:
             if i, ok := a.(int64); ok {

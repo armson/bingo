@@ -7,7 +7,7 @@ import(
     "strings"
     "io/ioutil"
     "compress/gzip"
-    "github.com/armson/bingo"
+    "github.com/armson/bingo/utils"
     "time"
     "net"
 )
@@ -30,7 +30,7 @@ func (this *HttpServer) Url() string {
     return this.request.URL.String()
 }
 func (this *HttpServer) Query() string {
-    return bingo.Map.HttpBuildQuery(this.params)
+    return utils.Map.HttpBuildQuery(this.params)
 }
 func (this *HttpServer) Bytes() ([]byte, error) {
     if this.body != nil { return this.body, nil }
@@ -57,13 +57,13 @@ func TimeoutDialer(cTimeout time.Duration, rwTimeout time.Duration) func(net, ad
     }
 }
 func (this *HttpServer) ci() (response *http.Response, err error) {
-    query := bingo.Map.HttpBuildQuery(this.params)
+    query := utils.Map.HttpBuildQuery(this.params)
 
     if this.request.Method == "GET" && len(query) > 0 {
         if strings.Contains(this.url, "?") {
-            this.url = bingo.String.Join(this.url,"&",query)
+            this.url = utils.String.Join(this.url,"&",query)
         } else {
-            this.url = bingo.String.Join(this.url,"?",query)
+            this.url = utils.String.Join(this.url,"?",query)
         }
     }
 

@@ -3,7 +3,7 @@ package db
 import (
     "database/sql"
     _ "github.com/go-sql-driver/mysql"
-    "github.com/armson/bingo"
+    "github.com/armson/bingo/utils"
     "fmt"
 )
 
@@ -16,7 +16,7 @@ var MysqlGroup map[string]*myMysql = map[string]*myMysql{}
 var Mysql *myMysql = &myMysql{}
 
 func (this *myMysql) Register(group, host, username, passwd, dbname, port, charset string){
-    dsn := bingo.String.Join(username,":",passwd,"@tcp(",host,":",port,")/",dbname,"?charset=",charset)
+    dsn := utils.String.Join(username,":",passwd,"@tcp(",host,":",port,")/",dbname,"?charset=",charset)
     db, err := sql.Open("mysql", dsn)
     if err != nil {
         panic(err.Error())
@@ -113,7 +113,7 @@ func (this *myMysql) Update(table string, data map[string]string, where string) 
     if where != "" {
         sql = append(sql, " WHERE ", where)
     }
-    _, afftectedRows = this.Excute(bingo.String.Join(sql...))
+    _, afftectedRows = this.Excute(utils.String.Join(sql...))
     return
 }
 func (this *myMysql) Insert(table string, data map[string]string) (lastInsertId, afftectedRows int64){
@@ -122,7 +122,7 @@ func (this *myMysql) Insert(table string, data map[string]string) (lastInsertId,
         sql = append(sql, k,"='",v,"'"," , ")
     }
     sql = sql[:len(sql)-1]
-    lastInsertId, afftectedRows = this.Excute(bingo.String.Join(sql...))
+    lastInsertId, afftectedRows = this.Excute(utils.String.Join(sql...))
     return
 }
 //用法 

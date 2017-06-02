@@ -2,7 +2,7 @@ package db
 
 import (
     "github.com/garyburd/redigo/redis"
-    "github.com/armson/bingo"
+    "github.com/armson/bingo/utils"
     "errors"
     "time"
 )
@@ -14,7 +14,7 @@ var RedisGroup map[string]*myRedis = map[string]*myRedis{}
 var Redis *myRedis = &myRedis{}
 
 func(this *myRedis) Register(group, host, port string , connectTimeout, readTimeout, writeTimeout time.Duration){
-    redisConn, err := redis.DialTimeout("tcp", bingo.String.Join(host,":",port), connectTimeout, readTimeout, writeTimeout)
+    redisConn, err := redis.DialTimeout("tcp", utils.String.Join(host,":",port), connectTimeout, readTimeout, writeTimeout)
     if err != nil {
         panic(err.Error())
     }
