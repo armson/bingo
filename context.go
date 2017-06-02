@@ -11,7 +11,7 @@ import(
     "io"
     "net/url"
     "encoding/json"
-    "github.com/armson/bingo"
+    "github.com/armson/bingo/utils"
 )
 
 const (
@@ -354,8 +354,8 @@ func (c *Context) SetCookie(name string,value string, maxAge int) {
         MaxAge:   maxAge,
         Path:     c.cookieSetting["path"],
         Domain:   c.cookieSetting["domain"],
-        Secure:   bingo.String.Bool(c.cookieSetting["secure"]),
-        HttpOnly: bingo.String.Bool(c.cookieSetting["httpOnly"]),
+        Secure:   utils.String.Bool(c.cookieSetting["secure"]),
+        HttpOnly: utils.String.Bool(c.cookieSetting["httpOnly"]),
     })
 }
 func (c *Context) UnsetCookie(name string) {

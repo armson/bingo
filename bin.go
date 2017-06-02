@@ -12,7 +12,7 @@ func engine() *Engine {
     once.Do(func() {
         internalEngine = Default()
     })
-    return internalEngineg
+    return internalEngine
 }
 
 // POST is a shortcut for router.Handle("POST", path, handle)
