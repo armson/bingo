@@ -12,8 +12,7 @@ func init() {
 
 // 待补充
 func IsDebugging() bool {
-    return true
-    //return ginMode == debugCode
+    return runMode == debugCode
 }
 
 func debugPrintRoute(httpMethod, absolutePath string, handlers HandlersChain) {
@@ -26,16 +25,8 @@ func debugPrintRoute(httpMethod, absolutePath string, handlers HandlersChain) {
 
 func debugPrint(format string, values ...interface{}) {
     if IsDebugging() {
-        log.Printf("[GIN-debug] "+format, values...)
+        log.Printf("[debug] "+format, values...)
     }
-}
-
-func debugPrintWARNINGNew() {
-    debugPrint(`[WARNING] Running in "debug" mode. Switch to "release" mode in production.
- - using env:   export GIN_MODE=release
- - using code:  gin.SetMode(gin.ReleaseMode)
-
-`)
 }
 
 func debugPrintError(err error) {

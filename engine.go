@@ -63,7 +63,6 @@ func (c HandlersChain) Last() HandlerFunc {
 // - HandleMethodNotAllowed: false
 // - ForwardedByClientIP:    true
 func New() *Engine {
-    debugPrintWARNINGNew()
     engine := &Engine{
         RouterGroup: RouterGroup{
             Handlers: nil,
@@ -146,10 +145,10 @@ func redirectFixedPath(c *Context, root *node, trailingSlash bool) bool {
 func (engine *Engine) allocateContext() *Context {
     return &Context{engine: engine}
 }
-func (engine *Engine) Run(addr ...string) (err error) {
+func (engine *Engine) Run() (err error) {
     defer func() { debugPrintError(err) }()
 
-    address := resolveAddress(addr)
+    address := resolveAddress()
     debugPrint("Listening and serving HTTP on %s\n", address)
     err = http.ListenAndServe(address, engine)
     return

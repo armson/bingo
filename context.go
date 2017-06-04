@@ -290,6 +290,13 @@ func (c *Context) GetPostFormArray(key string) ([]string, bool) {
     }
     return []string{}, false
 }
+func (c *Context) PostFormQuery() (string) {
+    req := c.Request
+    req.ParseForm()
+    return req.PostForm.Encode()
+}
+
+
 
 func (c *Context) HandlerName() string {
     return nameOfFunction(c.handlers.Last())

@@ -7,12 +7,10 @@ import (
 
 const (
 	DebugMode   string = "debug"
-	TestMode    string = "test"
 	ReleaseMode string = "release"
 )
 const (
 	debugCode   = iota
-	testCode
 	releaseCode   
 )
 
@@ -28,8 +26,6 @@ func SetMode(value string) {
 		runMode = debugCode
 	case ReleaseMode:
 		runMode = releaseCode
-	case TestMode:
-		runMode = testCode
 	default:
 		panic("run mode unknown: " + value)
 	}

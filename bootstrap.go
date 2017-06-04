@@ -13,7 +13,7 @@ import(
 var usageStr = `Usage:%s [options]
 Server Options:
     -c, --config <file>              Configuration file path
-    -m, --mode [debug|test|release]  Set run mode (default:debug)
+    -m, --mode [debug|release]  Set run mode (default:debug)
 Common Options:
     -h, --help                       Show this message
     -v, --version                    Show version
@@ -88,11 +88,14 @@ func init(){
             mode = configMode
         }
     }
-    if mode != DebugMode && mode != TestMode && mode != ReleaseMode {
-        fmt.Println(errors.New("run mode unknown ,it must be debug or test or release"))
+    if mode != DebugMode && mode != ReleaseMode {
+        fmt.Println(errors.New("run mode unknown ,it must be debug or release"))
         os.Exit(0)
     }
     SetMode(mode)
+
+
+
 }
 
 

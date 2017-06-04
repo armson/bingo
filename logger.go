@@ -6,6 +6,7 @@ import (
     "os"
     "time"
     "github.com/mattn/go-isatty"
+    "github.com/armson/bingo/utils"
 )
 
 var (
@@ -82,18 +83,24 @@ func LoggerWithWriter(out io.Writer, notlogged ...string) HandlerFunc {
             }
             comment := c.Errors.ByType(ErrorTypePrivate).String()
 
-            fmt.Fprintf(out, "[GIN] %v |%s %3d %s| %13v | %s |%s  %s %-7s %s\n%s",
+            fmt.Fprintf(out, "[Bingo] %v |%s %3d %s| %13v | %s | %s %s %s | %s | %s %s %s | %s | %s %s %s | %s \n%s",
                 end.Format("2006/01/02 - 15:04:05"),
                 statusColor, statusCode, reset,
                 latency,
                 clientIP,
-                methodColor, reset, method,
-                path,
+                methodColor,  method, reset, 
+                c.Request.URL,
+                methodColor, "_COOKIE",reset, 
+                utils.Map.String(c.Cookies()),
+                methodColor, "_POST",reset, 
+                c.PostFormQuery(),
                 comment,
             )
         }
     }
 }
+// func (Values) Encode
+// func (v Values) Encode() string
 
 func colorForStatus(code int) string {
     switch {

@@ -4,7 +4,7 @@ import(
     "path"
     "reflect"
     "runtime"
-    "os"
+    "github.com/armson/bingo/config"
 )
 
 func joinPaths(absolutePath, relativePath string) string {
@@ -35,20 +35,20 @@ func assert(guard bool, text string) {
 func nameOfFunction(f interface{}) string {
     return runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
 }
-func resolveAddress(addr []string) string {
-    switch len(addr) {
-    case 0:
-        if port := os.Getenv("PORT"); len(port) > 0 {
-            debugPrint("Environment variable PORT=\"%s\"", port)
-            return ":" + port
-        }
-        debugPrint("Environment variable PORT is undefined. Using port :8080 by default")
-        return ":8080"
-    case 1:
-        return addr[0]
-    default:
-        panic("too much parameters")
+func resolveAddress() string {
+    var port string
+    p , err := config.String("httpPort")
+    if err != nil {
+        port = ":8080"
+    } else {
+        port = ":" + p
     }
+
+    h , err := config.String("httpAddr")
+    if err == nil {
+        return h + port
+    }
+    return port
 }
 func filterFlags(content string) string {
     for i, char := range content {

@@ -86,8 +86,8 @@ func Use(middlewares ...HandlerFunc) IRoutes {
 // Run : The router is attached to a http.Server and starts listening and serving HTTP requests.
 // It is a shortcut for http.ListenAndServe(addr, router)
 // Note: this method will block the calling goroutine undefinitelly unless an error happens.
-func Run(addr ...string) (err error) {
-    return engine().Run(addr...)
+func Run() (err error) {
+    return engine().Run()
 }
 
 func Group(relativePath string, handlers ...HandlerFunc) *RouterGroup {
