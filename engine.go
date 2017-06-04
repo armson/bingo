@@ -4,12 +4,8 @@ import(
     "sync"
     "net/http"
     "os"
-    "io"
     "net"
 )
-
-var DefaultWriter io.Writer = os.Stdout
-var DefaultErrorWriter io.Writer = os.Stderr
 
 var default404Body = []byte("404 page not found")
 var default405Body = []byte("405 method not allowed")

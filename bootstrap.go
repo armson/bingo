@@ -7,11 +7,13 @@ import(
     "fmt"
     "path/filepath"
     "strconv"
+    "errors"
 )
 
 var usageStr = `Usage:%s [options]
 Server Options:
     -c, --config <file>              Configuration file path
+    -m, --mode [debug|test|release]  Set run mode (default:debug)
 Common Options:
     -h, --help                       Show this message
     -v, --version                    Show version
@@ -51,8 +53,11 @@ func createPIDFile() error {
 func init(){
     var isShowVersion bool
     var configFile string
+    var mode string
     flag.StringVar(&configFile, "c", "conf/app.conf", "Configuration file path.")
     flag.StringVar(&configFile, "config", "conf/app.conf", "Configuration file path.")
+    flag.StringVar(&mode, "m", "", "Set run mode.")
+    flag.StringVar(&mode, "mode", "", "Set run mode.")
     flag.BoolVar(&isShowVersion, "version", false, "Print version information.")
     flag.BoolVar(&isShowVersion, "v", false, "Print version information.")
     flag.Usage = usage
@@ -77,6 +82,17 @@ func init(){
         fmt.Println(err)
         os.Exit(0)
     }
+   
+    if mode == "" {
+        if configMode, err := config.String("runMode"); err == nil {
+            mode = configMode
+        }
+    }
+    if mode != DebugMode && mode != TestMode && mode != ReleaseMode {
+        fmt.Println(errors.New("run mode unknown ,it must be debug or test or release"))
+        os.Exit(0)
+    }
+    SetMode(mode)
 }
 
 
