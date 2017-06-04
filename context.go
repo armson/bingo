@@ -156,8 +156,6 @@ func (c *Context) AbortWithStatus(code int) {
 func (c *Context) Abort() {
     c.index = abortIndex
 }
-
-
 func (c *Context) String(code int, format string, values ...interface{}) {
     c.Status(code)
     writeContentType(c.Writer, plainContentType)
@@ -168,17 +166,13 @@ func (c *Context) String(code int, format string, values ...interface{}) {
     }
 }
 
-
 func (c *Context) JSON(code int, obj interface{}) {
     c.Status(code)
     writeContentType(c.Writer, jsonContentType)
-
     if err := json.NewEncoder(c.Writer).Encode(obj); err != nil {
         panic(err)
     }
 }
-
-
 func writeContentType(w http.ResponseWriter, value []string) {
     header := w.Header()
     if val := header["Content-Type"]; len(val) == 0 {

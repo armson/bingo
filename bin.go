@@ -3,10 +3,14 @@ package bingo
 import (
     "sync"
     "net/http"
+    "fmt"
+    "os"
 )
 
 var once sync.Once
 var internalEngine *Engine
+var Exit func() = func(){ os.Exit(0) }
+
 
 func engine() *Engine {
     once.Do(func() {
@@ -116,6 +120,22 @@ func RunTLS(addr string, certFile string, keyFile string) (err error) {
 func RunUnix(file string) (err error) {
     return engine().RunUnix(file)
 }
+
+func Echo(args ...interface{}){
+    fmt.Println(args)
+}
+
+func Printf(s string, args ...interface{}){
+    if len(args) < 1 {
+        fmt.Println(s)
+    } else {
+        fmt.Printf(s+"\n", args...)
+    }
+}
+
+
+
+
 
 
 
