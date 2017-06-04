@@ -4,20 +4,17 @@ import (
     "bufio"
     "bytes"
     "io"
-    "io/ioutil"
+    //"io/ioutil"
     "os"
     "strings"
-    "path"
+    //"path"
     "errors"
     "strconv"
     "sync"
+    // "fmt"
 )
 
-type Container struct {
-    data        map[string]map[string]string
-    files       []string
-}
-
+var iniContainer = map[string]map[string]string{}
 var (
     bCommentA       byte = '#'
     bCommentB       byte = ';'
@@ -27,14 +24,10 @@ var (
     bSectionStart   byte = '['
     bSectionEnd     byte = ']'
     lineBreak       byte = '\n'
-    Ini *Container
     mutex sync.Mutex
+    once  sync.Once
 )
-const (
-    INIFILEDIR  = "conf/"
-    INIFILESUFFIX = ".conf"
-    DEFAULTSECTION  = "default"
-)
+const DEFAULTSECTION  = "default"
 
 func Int(args ...string) (int64 , error) {
     value, err := String(args...)
@@ -68,14 +61,16 @@ func String(args ...string) (string , error) {
         sectionName = args[0]
     }
     name := args[lenArgs-1]
-    
-    if _, ok := Ini.data[sectionName]; !ok {
+    sectionName = strings.ToLower(sectionName)
+    name = strings.ToLower(name)
+
+    if _, ok := iniContainer[sectionName]; !ok {
         return "", errors.New("config section is not exists")
     }
-    if _, ok := Ini.data[sectionName][name]; !ok {
+    if _, ok := iniContainer[sectionName][name]; !ok {
         return "", errors.New("config key is not exists")
     }
-    return Ini.data[sectionName][name], nil
+    return iniContainer[sectionName][name], nil
 }
 
 func Set(args ...string) (error) {
@@ -96,45 +91,48 @@ func Set(args ...string) (error) {
     name := args[lenArgs-2]
     value := args[lenArgs-1]
 
-    _, sectionExists := Ini.data[sectionName]
+    _, sectionExists := iniContainer[sectionName]
     if sectionExists {
-        Ini.data[sectionName][string(name)] = string(value)
+        iniContainer[sectionName][string(name)] = string(value)
         return nil
     }
     section := map[string]string{}
     section[string(name)] = string(value)
-    Ini.data[sectionName] = section
+    iniContainer[sectionName] = section
     
     return nil
 }
 
-func init() {
-    Ini = &Container{
-        data:map[string]map[string]string{},
-        files:[]string{},
+func Load(filename string) (error) {
+    if len(filename) < 1 { 
+        return errors.New("Config file is required") 
     }
-    Ini = Ini.load(INIFILEDIR)
+    if err := parseFile(filename); err != nil {
+        return err
+    }
+    if err := checkConfig(); err != nil {
+        return err
+    }
+    return nil
 }
-func (this *Container) load(dirname string) *Container {
-    files := this.getIniFiles(dirname)
-    if len(files) < 1 { return this }
-    for _, file := range files {
-        this.parseFile(file)
+func checkConfig()(error){
+    if len(iniContainer) < 1 {
+        return errors.New("Config's data is NULL ")
     }
-    return this
+    return nil
 }
 
-func (this *Container) parseFile(filename string) *Container {
+func parseFile(filename string) error {
     currentSection := DEFAULTSECTION
     fp, err := os.Open(filename)
-    if err != nil {
-        return this
+    if err != nil { 
+        return err 
     }
     reader := bufio.NewReader(fp)
     for {
         line, err := reader.ReadBytes(lineBreak)
-        if err == io.EOF {
-            break
+        if err == io.EOF { 
+            break 
         }
         line = bytes.TrimSpace(line)
         if len(line) == 0 || line[0] == lineBreak || line[0] == bCommentA  || line[0] == bCommentB  {
@@ -148,15 +146,15 @@ func (this *Container) parseFile(filename string) *Container {
             }
         }
         // parse item
-        err = this.parseLine(currentSection, line)
+        err = parseLine(currentSection, line)
         if err != nil {
-            panic("Load conf file is wrong")
+            return err
         }
     }
-    return this
+    return nil
 }
 
-func (this *Container) parseLine(sectionName string, line []byte) error {
+func parseLine(sectionName string, line []byte) error {
     if line[0] == bCommentA || line[0] == bCommentB {
         return nil
     }
@@ -165,36 +163,23 @@ func (this *Container) parseLine(sectionName string, line []byte) error {
     name = bytes.TrimSpace(name)
     name = bytes.Trim(name, bQuote)
     name = bytes.Trim(name, bDoubleQuote)
+    name = bytes.ToLower(name)
 
     value = bytes.TrimSpace(value)
     value = bytes.Trim(value, bQuote)
     value = bytes.Trim(value, bDoubleQuote)
 
-    _, sectionExists := this.data[sectionName]
+    sectionName = strings.ToLower(sectionName)
+    _, sectionExists := iniContainer[sectionName]
     if sectionExists {
-        this.data[sectionName][string(name)] = string(value)
-
+        iniContainer[sectionName][string(name)] = string(value)
         return nil
     }
     section := map[string]string{}
     section[string(name)] = string(value)
-    this.data[sectionName] = section
+    iniContainer[sectionName] = section
 
     return nil
-}
-
-func (this *Container) getIniFiles(dirname string) []string {
-    files , err := ioutil.ReadDir(dirname)
-    if err != nil || len(files) < 1 { 
-        return this.files 
-    }
-    for _, file := range files {
-        filename := strings.ToLower(file.Name())
-        if !file.IsDir() && path.Ext(filename) == INIFILESUFFIX {
-            this.files = append(this.files, INIFILEDIR+filename)
-        }
-    }
-    return this.files
 }
 
 
