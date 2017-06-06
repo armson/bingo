@@ -292,45 +292,6 @@ func (engine *Engine) RunUnix(file string) (err error) {
 
 
 
-// func (engine *Engine) LoadHTMLGlob(pattern string) {
-//     if IsDebugging() {
-//         debugPrintLoadTemplate(template.Must(template.ParseGlob(pattern)))
-//         engine.HTMLRender = render.HTMLDebug{Glob: pattern}
-//     } else {
-//         templ := template.Must(template.ParseGlob(pattern))
-//         engine.SetHTMLTemplate(templ)
-//     }
-// }
-
-// func (engine *Engine) LoadHTMLFiles(files ...string) {
-//     if IsDebugging() {
-//         engine.HTMLRender = render.HTMLDebug{Files: files}
-//     } else {
-//         templ := template.Must(template.ParseFiles(files...))
-//         engine.SetHTMLTemplate(templ)
-//     }
-// }
-
-// func (engine *Engine) SetHTMLTemplate(templ *template.Template) {
-//     if len(engine.trees) > 0 {
-//         debugPrintWARNINGSetHTMLTemplate()
-//     }
-//     engine.HTMLRender = render.HTMLProduction{Template: templ}
-// }
-
-
-
-
-
-
-
-
-
-
-
-// // Conforms to the http.Handler interface.
-
-
 
 
 

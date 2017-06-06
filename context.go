@@ -53,6 +53,7 @@ type Context struct {
     Accepted []string
 
     cookieSetting   map[string]string
+    logs    map[string][]string
 }
 var _ context.Context = &Context{}
 
@@ -234,14 +235,13 @@ func (c *Context) reset() {
     c.Errors = c.Errors[0:0]
     c.Accepted = nil
     c.cookieSetting = defaultCookieSetting
+    c.logs = map[string][]string{}
 }
 
 func (c *Context) QueryArray(key string) []string {
     values, _ := c.GetQueryArray(key)
     return values
 }
-
-
 
 // PostForm returns the specified key from a POST urlencoded form or multipart form
 // when it exists, otherwise it returns an empty string `("")`.
@@ -388,7 +388,6 @@ func (c *Context) Redirect(location string) {
     http.Redirect(c.Writer, c.Request, location, 302)
 }
 
-
 func (c *Context) Copy() *Context {
     var cp = *c
     cp.writermem.ResponseWriter = nil
@@ -397,134 +396,31 @@ func (c *Context) Copy() *Context {
     cp.handlers = nil
     return &cp
 }
+func (c *Context) Logs(args ...string) {
+    var nodeName string
+    var nodeValue string
+    if len(args) < 1 { 
+        panic("Func (c *Context) Logs params is shorter")
+    }
+    if len(args) == 1 {
+        nodeName = utils.Int.String(len(c.logs))
+        nodeName = "node#"+nodeName
+        nodeValue = args[0]
+    }
+    if len(args) > 1 {
+        nodeName = "node#"+args[0]
+        nodeValue = args[1]
+    }
+    var node = []string{}
+    if _, exists := c.logs[nodeName]; exists {
+        node = c.logs[nodeName]
+    }
+    c.logs[nodeName] = append(node, nodeValue)
+}
 
 
 
 
-
-// // HTML renders the HTTP template specified by its file name.
-// // It also updates the HTTP code and sets the Content-Type as "text/html".
-// // See http://golang.org/doc/articles/wiki/
-// func (c *Context) HTML(code int, name string, obj interface{}) {
-//     instance := c.engine.HTMLRender.Instance(name, obj)
-//     c.Render(code, instance)
-// }
-
-// // IndentedJSON serializes the given struct as pretty JSON (indented + endlines) into the response body.
-// // It also sets the Content-Type as "application/json".
-// // WARNING: we recommend to use this only for development propuses since printing pretty JSON is
-// // more CPU and bandwidth consuming. Use Context.JSON() instead.
-// func (c *Context) IndentedJSON(code int, obj interface{}) {
-//     c.Render(code, render.IndentedJSON{Data: obj})
-// }
-
-// // JSON serializes the given struct as JSON into the response body.
-// // It also sets the Content-Type as "application/json".
-
-
-// // XML serializes the given struct as XML into the response body.
-// // It also sets the Content-Type as "application/xml".
-// func (c *Context) XML(code int, obj interface{}) {
-//     c.Render(code, render.XML{Data: obj})
-// }
-
-// // YAML serializes the given struct as YAML into the response body.
-// func (c *Context) YAML(code int, obj interface{}) {
-//     c.Render(code, render.YAML{Data: obj})
-// }
-
-// // String writes the given string into the response body.
-
-
-// // Redirect returns a HTTP redirect to the specific location.
-
-
-// // Data writes some data into the body stream and updates the HTTP code.
-// func (c *Context) Data(code int, contentType string, data []byte) {
-//     c.Render(code, render.Data{
-//         ContentType: contentType,
-//         Data:        data,
-//     })
-// }
-
-// // File writes the specified file into the body stream in a efficient way.
-
-
-// // SSEvent writes a Server-Sent Event into the body stream.
-// func (c *Context) SSEvent(name string, message interface{}) {
-//     c.Render(-1, sse.Event{
-//         Event: name,
-//         Data:  message,
-//     })
-// }
-
-// func (c *Context) Stream(step func(w io.Writer) bool) {
-//     w := c.Writer
-//     clientGone := w.CloseNotify()
-//     for {
-//         select {
-//         case <-clientGone:
-//             return
-//         default:
-//             keepOpen := step(w)
-//             w.Flush()
-//             if !keepOpen {
-//                 return
-//             }
-//         }
-//     }
-// }
-
-// /************************************/
-// /******** CONTENT NEGOTIATION *******/
-// /************************************/
-
-// type Negotiate struct {
-//     Offered  []string
-//     HTMLName string
-//     HTMLData interface{}
-//     JSONData interface{}
-//     XMLData  interface{}
-//     Data     interface{}
-// }
-
-// func (c *Context) Negotiate(code int, config Negotiate) {
-//     switch c.NegotiateFormat(config.Offered...) {
-//     case binding.MIMEJSON:
-//         data := chooseData(config.JSONData, config.Data)
-//         c.JSON(code, data)
-
-//     case binding.MIMEHTML:
-//         data := chooseData(config.HTMLData, config.Data)
-//         c.HTML(code, config.HTMLName, data)
-
-//     case binding.MIMEXML:
-//         data := chooseData(config.XMLData, config.Data)
-//         c.XML(code, data)
-
-//     default:
-//         c.AbortWithError(http.StatusNotAcceptable, errors.New("the accepted formats are not offered by the server"))
-//     }
-// }
-
-// func (c *Context) NegotiateFormat(offered ...string) string {
-//     assert1(len(offered) > 0, "you must provide at least one offer")
-
-//     if c.Accepted == nil {
-//         c.Accepted = parseAccept(c.requestHeader("Accept"))
-//     }
-//     if len(c.Accepted) == 0 {
-//         return offered[0]
-//     }
-//     for _, accepted := range c.Accepted {
-//         for _, offert := range offered {
-//             if accepted == offert {
-//                 return offert
-//             }
-//         }
-//     }
-//     return ""
-// }
 
 
 
