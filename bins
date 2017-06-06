@@ -1,0 +1,162 @@
+#! /bin/sh
+
+# example
+# 启动 ./bins -f /data/wanda/go/src/ibo/conf/app.conf
+# 
+bins_bin=/data/wanda/go/src/ibo/ibo   
+bins_pid=/var/wd/bingo/run/ibo.pid
+bins_conf=$2
+bins_mode=release
+prefix=/data/wanda/go/src/ibo
+nohub_log=/var/wd/bingo/log/nohub.log
+
+bins_conf_opts="-f $bins_conf"
+bins_mode_opts="-m $bins_mode"
+
+
+
+wait_for_pid () {
+ 	try=0
+
+ 	while test $try -lt 35 ; do
+ 		case "$1" in
+ 			'created')
+ 			if [ -f "$2" ] ; then
+ 				try=''
+ 				break
+ 			fi
+ 			;;
+
+ 			'removed')
+ 			if [ ! -f "$2" ] ; then
+ 				try=''
+ 				break
+ 			fi
+ 			;;
+ 		esac
+
+ 		echo .
+ 		try=`expr $try + 1`
+ 		sleep 1
+ 	done
+}
+
+case "$1" in
+ 	start)
+ 		echo "Starting Bingo with defatult configure ..."
+        cd $prefix
+        nohup /data/wanda/go/src/ibo/ibo $bins_mode_opts> $nohub_log 2>&1 &
+		if [ "$?" != 0 ] ; then
+			echo "failed"
+			exit 1
+		fi
+ 		wait_for_pid created $bins_pid
+
+ 		if [ -n "$try" ] ; then
+ 			echo "failed"
+ 			exit 1
+ 		else
+ 			echo "done"
+ 		fi
+ 	;;
+ 	stop)
+ 		echo "Gracefully shutting down Bingo ..."
+
+		if [ ! -r $bins_pid ] ; then
+			echo "warning, no pid file found , Bingo is not running ?"
+			exit 1
+		fi
+
+ 		kill -QUIT `cat $bins_pid`
+        if [ "$?" != 0 ] ; then
+            echo "warning, No such process, but pid file exists, Bingo is not running ?"
+            exit 1
+        fi
+
+ 		wait_for_pid removed $bins_pid
+
+		if [ -n "$try" ] ; then
+			echo "failed. Use force-quit"
+			exit 1
+		else
+			echo "done"
+		fi
+	;;
+
+	status)
+		if [ ! -r $bins_pid ] ; then
+			echo "Bingo is stopped"
+			exit 0
+		fi
+
+		PID=`cat $bins_pid`
+		if ps -p $PID | grep -q $PID; then
+			echo "Bingo (pid $PID) is running..."
+		else
+			echo "Bingo dead but pid file exists"
+		fi
+	;;
+    -f)
+        echo "Starting Bingo ..."
+        cd $prefix
+        nohup /data/wanda/go/src/ibo/ibo $bins_conf_opts  $bins_mode_opts> $nohub_log 2>&1 &
+        if [ "$?" != 0 ] ; then
+            echo "failed"
+            exit 1
+        fi
+        wait_for_pid created $bins_pid
+
+        if [ -n "$try" ] ; then
+            echo "failed"
+            exit 1
+        else
+            echo "done"
+        fi
+    ;;
+	force-quit)
+		echo -n "Terminating Bingo ... "
+
+		if [ ! -r $bins_pid ] ; then
+			echo "warning, no pid file found , Bingo is not running ?"
+			exit 1
+		fi
+
+		kill -TERM `cat $bins_pid`
+
+		wait_for_pid removed $bins_pid
+
+		if [ -n "$try" ] ; then
+			echo " failed"
+			exit 1
+		else
+			echo " done"
+		fi
+	;;
+
+# 如果配置文件是固定的，可以使用restart
+	restart)
+		$0 stop
+		$0 start
+	;;
+
+# 重新载入默认的配置文件
+	reload)
+		echo "Reload service Bingo ... "
+		if [ ! -r $bins_pid ] ; then
+			echo "warning, no pid file found, Bingo is not running ?"
+			exit 1
+		fi
+		kill -USR2 `cat $bins_pid`
+		echo " done"
+	;;
+
+	# config)
+	# 	$bins_bin -t
+	# ;;
+
+	*)
+		echo "Usage: $0 {-f <file>|start|stop|reload|status|force-quit}"
+		exit 1
+	;;
+
+esac
