@@ -4,14 +4,14 @@ import (
     "bufio"
     "bytes"
     "io"
-    //"io/ioutil"
+    "path/filepath"
     "os"
     "strings"
     //"path"
     "errors"
     "strconv"
     "sync"
-    // "fmt"
+    "fmt"
 )
 
 var iniContainer = map[string]map[string]string{}
@@ -65,10 +65,10 @@ func String(args ...string) (string , error) {
     name = strings.ToLower(name)
 
     if _, ok := iniContainer[sectionName]; !ok {
-        return "", errors.New("config section is not exists")
+        return "", fmt.Errorf("config section [%s] is not exists" , sectionName)
     }
     if _, ok := iniContainer[sectionName][name]; !ok {
-        return "", errors.New("config key is not exists")
+        return "", fmt.Errorf("config section [%s] key [%s] is not exists" , sectionName, name)
     }
     return iniContainer[sectionName][name], nil
 }
@@ -91,15 +91,23 @@ func Set(args ...string) (error) {
     name := args[lenArgs-2]
     value := args[lenArgs-1]
 
+    name = strings.TrimSpace(name)
+    name = strings.ToLower(name)
+
+    value = strings.TrimSpace(value)
+    value = strings.ToLower(value)
+
+    sectionName = strings.TrimSpace(sectionName)
+    sectionName = strings.ToLower(sectionName)
+
     _, sectionExists := iniContainer[sectionName]
     if sectionExists {
-        iniContainer[sectionName][string(name)] = string(value)
+        iniContainer[sectionName][name] = value
         return nil
     }
     section := map[string]string{}
-    section[string(name)] = string(value)
+    section[name] = value
     iniContainer[sectionName] = section
-    
     return nil
 }
 
@@ -120,6 +128,47 @@ func checkConfig()(error){
         return errors.New("Config's data is NULL ")
     }
     return nil
+}
+func SaveConfig(){
+    fileName , _ := String("accessLog")
+    fileName = fileName+".configure"
+    if err := os.MkdirAll(filepath.Dir(fileName), os.ModePerm); err != nil {
+        fmt.Errorf("Can't create accessLog.configure folder on %v", err)
+    }
+    file, err := os.OpenFile(fileName, os.O_CREATE|os.O_RDWR, os.ModePerm)
+    if err != nil {
+        fmt.Errorf("Can't create accessLog.configure file: %v", err)
+    }
+    defer file.Close()
+    runMode,_ := String("runMode")
+    pid,_ := String("pid")
+    currentPid,_ := String("currentPid")
+    configure,_ := String("configFile")
+
+    file.WriteString("[runMode: "+runMode+"]\n")
+    file.WriteString("[configure: "+configure+"]\n")
+    file.WriteString("[pid: "+pid+"]\n")
+    file.WriteString("[currentPid: "+currentPid+"]\n")
+    file.WriteString("\n")
+    for section, items := range iniContainer {
+        file.WriteString("["+section+"]\n")
+        for k , item := range items {
+            file.WriteString(k+": "+item+"\n")
+        }
+        file.WriteString("\n")
+    }
+}
+func PrintConfig() {
+    fileName , _ := String("accessLog")
+    fileName = fileName+".configure"
+    file, err := os.Open(fileName)
+    defer file.Close()
+    if err == nil { 
+        configure := make([]byte,409600)
+        file.Read(configure)
+        fmt.Println(configure)
+    }
+    fmt.Println(err,"configure")
 }
 
 func parseFile(filename string) error {
