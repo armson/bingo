@@ -8,6 +8,8 @@ import(
     "path/filepath"
     "strconv"
     "errors"
+    "github.com/armson/bingo/signal"
+    "syscall"
 )
 // -t                               Show Configuration information  
 var usageStr = `Usage:%s [options]
@@ -112,8 +114,14 @@ func init(){
     if _, err := config.String("errorLog"); err != nil {
         config.Set("errorLog", "/var/log/bingo/error.log")
     }
-    
-    //config.SaveConfig()
+
+    //注册信号方法
+    signal.RegisterSignalHandler(syscall.SIGQUIT,deletePIDFile)
+}
+
+func deletePIDFile(sign os.Signal){
+    pidPath, _ := config.String("pid")
+    os.Remove(pidPath)
 }
 
 
