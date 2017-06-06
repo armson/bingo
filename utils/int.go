@@ -17,8 +17,15 @@ func (this *myInt) Join(args ...int64) string {
     return buf.String()
 }
 
-func (this *myInt) String(i int64) string {
-    return strconv.FormatInt(i, 10)
+func (this *myInt) String(i interface{}) string {
+    switch i.(type) {
+    case int64:
+        return strconv.FormatInt(i.(int64), 10)
+    case int:
+        return strconv.Itoa(i.(int))  
+    default:
+        return ""    
+    }
 }
 
 func (this *myInt) Ceil(x , y int64) int64 {

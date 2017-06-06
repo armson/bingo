@@ -59,16 +59,5 @@ func filterFlags(content string) string {
     return content
 }
 
-// func FileExists(path string) (bool, error) {
-//     file, err := os.Stat(path)
-//     if err != nil && os.IsNotExist(err) {
-//         return false, err 
-//     }
-//     if file.IsDir() {
-//         return  false, nil 
-//     }
-//     return true, nil
-// }
-
 
 
