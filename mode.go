@@ -14,7 +14,6 @@ const (
 	releaseCode   
 )
 
-var DefaultWriter io.Writer = os.Stdout
 var DefaultErrorWriter io.Writer = os.Stderr
 
 var runMode = debugCode
@@ -35,3 +34,5 @@ func SetMode(value string) {
 func Mode() string {
 	return modeName
 }
+
+

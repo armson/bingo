@@ -7,6 +7,10 @@ import (
     "time"
     "github.com/mattn/go-isatty"
     "github.com/armson/bingo/utils"
+    "github.com/armson/bingo/config"
+    "path/filepath"
+    "bytes"
+    "sync"
 )
 
 var (
@@ -20,87 +24,107 @@ var (
     reset   = string([]byte{27, 91, 48, 109})
 )
 
-func ErrorLogger() HandlerFunc {
-    return ErrorLoggerT(ErrorTypeAny)
+var defaultLoggerWriter io.Writer
+var onlyOne sync.Once
+
+func SetLoggerWriter() {
+    onlyOne.Do(func() {
+        if runMode == debugCode {
+            defaultLoggerWriter = os.Stdout
+        }
+        if runMode == releaseCode {
+            defaultLoggerWriter = NewFileWriter()
+        }
+    })
 }
 
-func ErrorLoggerT(typ ErrorType) HandlerFunc {
-    return func(c *Context) {
-        c.Next()
-        errors := c.Errors.ByType(typ)
-        if len(errors) > 0 {
-            c.JSON(-1, errors)
+func NewFileWriter() io.Writer {
+    fileName , _ := config.String("accessLog")
+    if err := os.MkdirAll(filepath.Dir(fileName), os.ModePerm); err != nil {
+        fmt.Errorf("Can't create accessLog folder on %v", err)
+    }
+    file, err := os.OpenFile(fileName, os.O_CREATE|os.O_APPEND|os.O_RDWR, os.ModePerm)
+    if err != nil {
+        fmt.Errorf("Can't create accessLog file: %v", err)
+    }
+    return file
+}
+
+func ResetLoggerWriter(){
+    if w, ok := defaultLoggerWriter.(*os.File); ok {
+        file ,err := w.Stat()
+        if err != nil {
+            fmt.Errorf("Can't Stat accessLog file: %v", err)
+        }
+        modTime := file.ModTime()
+        nowTime := time.Now()
+        if modTime.Year() != nowTime.Year() || modTime.YearDay() != nowTime.YearDay() || modTime.Hour() != nowTime.Hour() {
+            format := "2006010215"
+            fileName , _ := config.String("accessLog")
+            err := os.Rename(fileName, fileName+"."+modTime.Format(format))
+            if err != nil {
+                fmt.Errorf("Can't Rename [%s] file: %v", fileName, err)
+            }
+            defaultLoggerWriter = NewFileWriter()
         }
     }
 }
 
-// Logger instances a Logger middleware that will write the logs to gin.DefaultWriter
-// By default gin.DefaultWriter = os.Stdout
 func Logger() HandlerFunc {
-    return LoggerWithWriter(DefaultWriter)
-}
-
-// LoggerWithWriter instance a Logger middleware with the specified writter buffer.
-// Example: os.Stdout, a file opened in write mode, a socket...
-func LoggerWithWriter(out io.Writer, notlogged ...string) HandlerFunc {
+    SetLoggerWriter()
     isTerm := true
-
-    if w, ok := out.(*os.File); !ok || !isatty.IsTerminal(w.Fd()) {
+    if w, ok := defaultLoggerWriter.(*os.File); !ok || !isatty.IsTerminal(w.Fd()) {
         isTerm = false
     }
-
-    var skip map[string]struct{}
-
-    if length := len(notlogged); length > 0 {
-        skip = make(map[string]struct{}, length)
-
-        for _, path := range notlogged {
-            skip[path] = struct{}{}
-        }
-    }
-
     return func(c *Context) {
-        // Start timer
         start := time.Now()
-        path := c.Request.URL.Path
-
         // Process request
         c.Next()
-
-        // Log only when path is not being skipped
-        if _, ok := skip[path]; !ok {
-            // Stop timer
-            end := time.Now()
-            latency := end.Sub(start)
-
-            clientIP := c.ClientIP()
-            method := c.Request.Method
-            statusCode := c.Writer.Status()
-            var statusColor, methodColor string
-            if isTerm {
-                statusColor = colorForStatus(statusCode)
-                methodColor = colorForMethod(method)
-            }
-            comment := c.Errors.ByType(ErrorTypePrivate).String()
-
-            fmt.Fprintf(out, "[Bingo] %v |%s %3d %s| %13v | %s | %s %s %s | %s | %s %s %s | %s | %s %s %s | %s \n%s",
-                end.Format("2006/01/02 - 15:04:05"),
-                statusColor, statusCode, reset,
-                latency,
-                clientIP,
-                methodColor,  method, reset, 
-                c.Request.URL,
-                methodColor, "_COOKIE",reset, 
-                utils.Map.String(c.Cookies()),
-                methodColor, "_POST",reset, 
-                c.PostFormQuery(),
-                comment,
-            )
+        ResetLoggerWriter()
+        end := time.Now()
+        latency := end.Sub(start)
+        clientIP := c.ClientIP()
+        method := c.Request.Method
+        statusCode := c.Writer.Status()
+        var statusColor, methodColor string
+        if isTerm {
+            statusColor = colorForStatus(statusCode)
+            methodColor = colorForMethod(method)
         }
+        comment := c.Errors.ByType(ErrorTypePrivate).String()
+        fmt.Fprintf(defaultLoggerWriter, "[Bingo] %v |%s %3d %s| %13v | %s |%s %s %s| %s |%s %s %s| %s |%s %s %s| %s | %s \n%s",
+            end.Format("2006/01/02 - 15:04:05"),
+            statusColor, statusCode, reset,
+            latency,
+            clientIP,
+            methodColor,  method, reset, 
+            c.Request.URL,
+            methodColor, "_COOKIE",reset, 
+            utils.Map.String(c.Cookies()),
+            methodColor, "_POST",reset, 
+            c.PostFormQuery(),
+            joinString(c.logs),
+            comment,
+        )
+
     }
 }
-// func (Values) Encode
-// func (v Values) Encode() string
+func joinString(params map[string][]string) (s string) {
+    if len(params) < 1 { return }
+    buf := bytes.Buffer{}
+    for key, args := range params {
+        for k , arg := range args {
+            buf.WriteByte('[')
+            buf.WriteString(key)
+            buf.WriteString("#")
+            buf.WriteString(utils.Int.String(k))
+            buf.WriteString("]:")
+            buf.WriteString(arg)
+        }
+    }
+    s = buf.String()
+    return
+}
 
 func colorForStatus(code int) string {
     switch {
