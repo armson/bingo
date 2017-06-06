@@ -136,21 +136,3 @@ func Printf(s string, args ...interface{}){
 
 
 
-
-
-
-
-// func LoadHTMLGlob(pattern string) {
-//     engine().LoadHTMLGlob(pattern)
-// }
-
-// func LoadHTMLFiles(files ...string) {
-//     engine().LoadHTMLFiles(files...)
-// }
-
-// func SetHTMLTemplate(templ *template.Template) {
-//     engine().SetHTMLTemplate(templ)
-// }
-
-
-
