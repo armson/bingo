@@ -30,6 +30,7 @@ type HttpServer struct {
     params      map[string][]string
     body        []byte
     setting     Settings
+	cost		time.Duration
 }
 type Settings struct {
     UserAgent        string
@@ -90,6 +91,9 @@ func Delete(rawurl string) *HttpServer {
 }
 func Head(rawurl string) *HttpServer {
     return createHttpServer("HEAD", rawurl)
+}
+func Handle(method,rawurl string) *HttpServer {
+    return createHttpServer(method, rawurl)
 }
 func (this *HttpServer) String() (string, error) {
     data, err := this.Bytes()

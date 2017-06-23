@@ -4,10 +4,8 @@ import (
     "bufio"
     "bytes"
     "io"
-    "path/filepath"
     "os"
     "strings"
-    //"path"
     "errors"
     "strconv"
     "sync"
@@ -29,27 +27,52 @@ var (
 )
 const DEFAULTSECTION  = "default"
 
-func Int(args ...string) (int64 , error) {
-    value, err := String(args...)
-    if err != nil { return -1, err }
+func Int(args ...string) (int) {
+    value, err := Get(args...)
+    if err != nil { return -1 }
     i, err := strconv.ParseInt(value, 10, 64)
     if err != nil {
-        return -1, err
+        return -1
     } 
-    return i, nil
+    return int(i)
 }
 
-func Bool(args ...string) (bool , error) {
-    value, err := String(args...)
-    if err != nil { return false, err }
+func Bool(args ...string) (bool) {
+    value, err := Get(args...)
+    if err != nil { return false}
     b, err := strconv.ParseBool(value)
     if err != nil {
-        return false, err
+        return false
     } 
-    return b, nil
+    return b
 }
 
-func String(args ...string) (string , error) {
+func String(args ...string) (string) {
+    value, err := Get(args...)
+    if err != nil { return ""}
+    return value
+}
+
+func Float(args ...string) (float64) {
+    value, err := Get(args...)
+    if err != nil { return -1 }
+    i, err := strconv.ParseFloat(value, 64)
+    if err != nil {
+        return -1
+    } 
+    return i
+}
+
+func Map(sectionName string) (map[string]string) {
+    sectionName = strings.ToLower(sectionName)
+    if _, ok := iniContainer[sectionName]; !ok {
+        return map[string]string{}
+    }
+    return iniContainer[sectionName]
+}
+
+
+func Get(args ...string) (string , error) {
     lenArgs := len(args)
     if lenArgs < 1 {
         return "", errors.New("config func String args 1 is must")
@@ -95,7 +118,6 @@ func Set(args ...string) (error) {
     name = strings.ToLower(name)
 
     value = strings.TrimSpace(value)
-    value = strings.ToLower(value)
 
     sectionName = strings.TrimSpace(sectionName)
     sectionName = strings.ToLower(sectionName)
@@ -128,47 +150,6 @@ func checkConfig()(error){
         return errors.New("Config's data is NULL ")
     }
     return nil
-}
-func SaveConfig(){
-    fileName , _ := String("accessLog")
-    fileName = fileName+".configure"
-    if err := os.MkdirAll(filepath.Dir(fileName), os.ModePerm); err != nil {
-        fmt.Errorf("Can't create accessLog.configure folder on %v", err)
-    }
-    file, err := os.OpenFile(fileName, os.O_CREATE|os.O_RDWR, os.ModePerm)
-    if err != nil {
-        fmt.Errorf("Can't create accessLog.configure file: %v", err)
-    }
-    defer file.Close()
-    runMode,_ := String("runMode")
-    pid,_ := String("pid")
-    currentPid,_ := String("currentPid")
-    configure,_ := String("configFile")
-
-    file.WriteString("[runMode: "+runMode+"]\n")
-    file.WriteString("[configure: "+configure+"]\n")
-    file.WriteString("[pid: "+pid+"]\n")
-    file.WriteString("[currentPid: "+currentPid+"]\n")
-    file.WriteString("\n")
-    for section, items := range iniContainer {
-        file.WriteString("["+section+"]\n")
-        for k , item := range items {
-            file.WriteString(k+": "+item+"\n")
-        }
-        file.WriteString("\n")
-    }
-}
-func PrintConfig() {
-    fileName , _ := String("accessLog")
-    fileName = fileName+".configure"
-    file, err := os.Open(fileName)
-    defer file.Close()
-    if err == nil { 
-        configure := make([]byte,409600)
-        file.Read(configure)
-        fmt.Println(configure)
-    }
-    fmt.Println(err,"configure")
 }
 
 func parseFile(filename string) error {

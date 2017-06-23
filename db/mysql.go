@@ -4,60 +4,59 @@ import (
     "database/sql"
     _ "github.com/go-sql-driver/mysql"
     "github.com/armson/bingo/utils"
-    "fmt"
+    "time"
 )
 
-type myMysql struct{
-    group   string
-    dsn     string
-    db      *sql.DB
-}
-var MysqlGroup map[string]*myMysql = map[string]*myMysql{}
-var Mysql *myMysql = &myMysql{}
 
-func (this *myMysql) Register(group, host, username, passwd, dbname, port, charset string){
-    dsn := utils.String.Join(username,":",passwd,"@tcp(",host,":",port,")/",dbname,"?charset=",charset)
+type binMysql struct{
+    *sql.DB
+}
+var (
+    Mysql *binMysql
+    MysqlGroup = map[string]*binMysql{}
+)
+
+// 参考 go-sql-driver中dsn_test.go中的例子
+func (this *binMysql) Register(group, dsn string, params map[string]string){
+    dsn = utils.String.Join(dsn, "?" , utils.Map.BuildQuery(params))
     db, err := sql.Open("mysql", dsn)
     if err != nil {
         panic(err.Error())
     }
-    if group == "default" {
-        this.group = group
-        this.dsn = dsn
-        this.db = db
+    if group == "db0" {
+        Mysql = &binMysql{db}
     }
-    MysqlGroup[group] = &myMysql{group,dsn,db}
+    MysqlGroup[group] = &binMysql{db}
 }
 
-func (this *myMysql) Use(group string) *myMysql {
+func (this *binMysql) Use(group string) *binMysql {
     if v , ok := MysqlGroup[group]; ok {
         return v
     }
-    return MysqlGroup["default"]
+    return MysqlGroup["db0"]
 }
 
-func (this *myMysql) SetMaxIdleConns(maxIdleConns int64) {
-    this.db.SetMaxIdleConns(int(maxIdleConns))
+func (this *binMysql) SetMaxIdleConns(maxIdleConns int) {
+    this.DB.SetMaxIdleConns(maxIdleConns)
 }
 
-func (this *myMysql) SetMaxOpenConns(maxOpenConns int64) {
-    this.db.SetMaxOpenConns(int(maxOpenConns))
+func (this *binMysql) SetMaxOpenConns(maxOpenConns int) {
+    this.DB.SetMaxOpenConns(maxOpenConns)
 }
 
-func (this myMysql) String() string {
-    return fmt.Sprintf("%s[%s][%+v]", this.group, this.dsn, this.db)
+func (this *binMysql) SetConnMaxLifetime(t time.Duration) {
+    this.DB.SetConnMaxLifetime(t)
 }
 
-func (this *myMysql) Query(sql string)  []map[string]string {
-    //fmt.Println(sql)
-    rows, err := this.db.Query(sql)
+func (this *binMysql) Query(sql string)  []map[string]string {
+    rows, err := this.DB.Query(sql)
     if err != nil {
         panic(err.Error())
     }
     return this.queryFormat(rows)
 }
 
-func (this *myMysql) Fetch(sql string) (map[string]string) {
+func (this *binMysql) Fetch(sql string) (map[string]string) {
     rows := this.Query(sql)
     if len(rows) > 0 {
         return rows[0]
@@ -65,9 +64,8 @@ func (this *myMysql) Fetch(sql string) (map[string]string) {
     return nil
 }
 
-func (this *myMysql) Excute(sql string) (lastInsertId, afftectedRows int64) {
-    fmt.Printf("%s\n\n", sql)
-    res, err := this.db.Exec(sql)
+func (this *binMysql) Excute(sql string) (lastInsertId, afftectedRows int64) {
+    res, err := this.DB.Exec(sql)
     if err != nil {
         panic(err.Error())
     }
@@ -83,8 +81,8 @@ func (this *myMysql) Excute(sql string) (lastInsertId, afftectedRows int64) {
 }
 
 // Prepare的性能低于Excute
-func (this *myMysql) Prepare(sql string, args ...interface{}) (lastInsertId, afftectedRows int64){
-    stm, err := this.db.Prepare(sql)
+func (this *binMysql) Prepare(sql string, args ...interface{}) (lastInsertId, afftectedRows int64){
+    stm, err := this.DB.Prepare(sql)
     if err != nil {
         panic(err.Error())
     }
@@ -104,7 +102,7 @@ func (this *myMysql) Prepare(sql string, args ...interface{}) (lastInsertId, aff
     return
 }
 
-func (this *myMysql) Update(table string, data map[string]string, where string) (afftectedRows int64){
+func (this *binMysql) Update(table string, data map[string]string, where string) (afftectedRows int64){
     sql := []string{"UPDATE ",table," SET "}
     for k, v := range data {
         sql = append(sql, k,"='",v,"'"," , ")
@@ -116,7 +114,7 @@ func (this *myMysql) Update(table string, data map[string]string, where string) 
     _, afftectedRows = this.Excute(utils.String.Join(sql...))
     return
 }
-func (this *myMysql) Insert(table string, data map[string]string) (lastInsertId, afftectedRows int64){
+func (this *binMysql) Insert(table string, data map[string]string) (lastInsertId, afftectedRows int64){
     sql := []string{"INSERT INTO ",table," SET "}
     for k, v := range data {
         sql = append(sql, k,"='",v,"'"," , ")
@@ -132,15 +130,15 @@ func (this *myMysql) Insert(table string, data map[string]string) (lastInsertId,
 // }
 // tx.Commit()
 
-func (this *myMysql) Begin() *sql.Tx {
-    tx , err := this.db.Begin()
+func (this *binMysql) Begin() *sql.Tx {
+    tx , err := this.DB.Begin()
     if err != nil {
         panic(err.Error())
     }
     return tx
 }
 
-func (this *myMysql) queryFormat(rows *sql.Rows) (data []map[string]string) {
+func (this *binMysql) queryFormat(rows *sql.Rows) (data []map[string]string) {
     columns, _ := rows.Columns()
     scanArgs := make([]interface{}, len(columns))
     values := make([]interface{}, len(columns))
@@ -160,15 +158,17 @@ func (this *myMysql) queryFormat(rows *sql.Rows) (data []map[string]string) {
     return
 }
 
-
-
-func (this *myMysql) Close() error {
-    return this.db.Close()
+func (this *binMysql) Close() error {
+    return this.DB.Close()
 }
 
-func (this *myMysql) Db() *sql.DB {
-    return this.db
+func (this *binMysql) Db() *sql.DB {
+    return this.DB
 }
+
+
+
+
 
 
 

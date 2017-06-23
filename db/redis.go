@@ -2,42 +2,67 @@ package db
 
 import (
     "github.com/garyburd/redigo/redis"
-    "github.com/armson/bingo/utils"
     "errors"
     "time"
 )
 
-type myRedis struct{
-    conn redis.Conn
+type binRedis struct{
+    redis.Pool
 }
-var RedisGroup map[string]*myRedis = map[string]*myRedis{}
-var Redis *myRedis = &myRedis{}
+var (
+    Redis *binRedis
+    RedisGroup = map[string]*binRedis{}
+)
 
-func(this *myRedis) Register(group, host, port string , connectTimeout, readTimeout, writeTimeout time.Duration){
-    redisConn, err := redis.DialTimeout("tcp", utils.String.Join(host,":",port), connectTimeout, readTimeout, writeTimeout)
-    if err != nil {
-        panic(err.Error())
+func (this *binRedis) Register(group , server string, selectDb , maxIdleConns, maxOpenConns int, 
+    connMaxLifetime ,connectTimeout , readTimeout , writeTimeout time.Duration) {
+    var p = &binRedis{
+        redis.Pool{
+            MaxIdle:     maxIdleConns,
+            MaxActive:   maxOpenConns,
+            IdleTimeout: connMaxLifetime,
+            Dial: func() (redis.Conn, error) {
+                c, err := redis.DialTimeout("tcp", server, connectTimeout, readTimeout, writeTimeout)
+                if err != nil {
+                    return nil, err
+                }
+                c.Do("SELECT", selectDb)
+                return c, err
+            },
+            TestOnBorrow: func(c redis.Conn, t time.Time) error {
+                if time.Since(t) < connMaxLifetime {
+                    return nil
+                }
+                _, err := c.Do("PING")
+                return err
+            },
+        },
     }
-    if group == "default" {
-        this.conn = redisConn
+    if group == "db0" {
+        Redis = p
     }
-    RedisGroup[group] = &myRedis{redisConn}
+    RedisGroup[group] = p
 }
 
-
+func (this *binRedis) Use(group string) *binRedis {
+    if v , ok := RedisGroup[group]; ok {
+        return v
+    }
+    return this
+}
 // example
 // Get("k")
 // Get(6)
 // Get(6.5)
-func(this *myRedis) Get(key interface{}) (string, error) {
-    s, err := redis.String(this.conn.Do("GET", key))
+func(this *binRedis) Get(key interface{}) (string, error) {
+    s, err := redis.String(this.Pool.Get().Do("GET", key))
     if err != nil { return "", errors.New("nil returned") }
     return s,nil
 }
 // example
 // Mget("k",6,6.5)
-func(this *myRedis) Mget(keys ...interface{}) ([]string) {
-    s , err := redis.Strings(this.conn.Do("MGET", keys...))
+func(this *binRedis) Mget(keys ...interface{}) ([]string) {
+    s , err := redis.Strings(this.Pool.Get().Do("MGET", keys...))
     if err != nil { return []string{} }
     return s
 }
@@ -48,8 +73,8 @@ func(this *myRedis) Mget(keys ...interface{}) ([]string) {
 // Set(1,1)
 // Set("k","val","PX",3600000) 单位：毫秒
 // Set("k","val","EX",3600) 单位：秒
-func(this *myRedis) Set(args ...interface{}) bool {
-    _, err := redis.String(this.conn.Do("SET", args...))
+func(this *binRedis) Set(args ...interface{}) bool {
+    _, err := redis.String(this.Pool.Get().Do("SET", args...))
     if err != nil { return false }
     return true
 }
@@ -57,8 +82,8 @@ func(this *myRedis) Set(args ...interface{}) bool {
 // SetEx("k","val",3600)
 // SetEx("k",99,3600)
 // SetEx("k",6.5,3600)
-func(this *myRedis) SetEx(key , value interface{}, seconds int) bool {
-    _, err := redis.String(this.conn.Do("SET", key, value, "EX", seconds))
+func(this *binRedis) SetEx(key , value interface{}, seconds int) bool {
+    _, err := redis.String(this.Pool.Get().Do("SET", key, value, "EX", seconds))
     if err != nil { return false }
     return true
 }
@@ -66,23 +91,23 @@ func(this *myRedis) SetEx(key , value interface{}, seconds int) bool {
 // SetNx("k","val")
 // SetNx("k",1)
 // SetNx(6.5,2)
-func(this *myRedis) SetNx(args ...interface{}) bool {
+func(this *binRedis) SetNx(args ...interface{}) bool {
     args = append(args,"NX")
-    _, err := redis.String(this.conn.Do("SET", args...))
+    _, err := redis.String(this.Pool.Get().Do("SET", args...))
     if err != nil { return false }
     return true
 }
-func(this *myRedis) Mset(m map[string]string) bool {
+func(this *binRedis) Mset(m map[string]string) bool {
     var args []interface{}
     for k , v := range m { args = append(args,k,v) }
-    _, err := redis.String(this.conn.Do("MSET", args...))
+    _, err := redis.String(this.Pool.Get().Do("MSET", args...))
     if err != nil { return false }
     return true
 }
-func(this *myRedis) MsetNx(m map[string]string) bool {
+func(this *binRedis) MsetNx(m map[string]string) bool {
     var args []interface{}
     for k , v := range m { args = append(args,k,v) }
-    _, err := redis.String(this.conn.Do("MSETNX", args...))
+    _, err := redis.String(this.Pool.Get().Do("MSETNX", args...))
     if err != nil { return false }
     return true
 }
@@ -90,20 +115,20 @@ func(this *myRedis) MsetNx(m map[string]string) bool {
 // example
 // Append("k","val")
 // Append(1,1)
-func(this *myRedis) Append(key , value interface{}) int {
-    len, err := redis.Int(this.conn.Do("APPEND", key, value))
+func(this *binRedis) Append(key , value interface{}) int {
+    len, err := redis.Int(this.Pool.Get().Do("APPEND", key, value))
     if err != nil { return 0 }
     return len
 }
 // example
 // Del("k1","k2",6.5,1)
-func(this *myRedis) Del(keys ...interface{}) (int) {
-    number ,err := redis.Int(this.conn.Do("DEL", keys...))
+func(this *binRedis) Del(keys ...interface{}) (int) {
+    number ,err := redis.Int(this.Pool.Get().Do("DEL", keys...))
     if err != nil { return 0 }
     return number
 }
-func(this *myRedis) Keys(regular string) ([]string) {
-    s , err := redis.Strings(this.conn.Do("KEYS", regular))
+func(this *binRedis) Keys(regular string) ([]string) {
+    s , err := redis.Strings(this.Pool.Get().Do("KEYS", regular))
     if err != nil { return []string{} }
     return s
 }
@@ -111,8 +136,8 @@ func(this *myRedis) Keys(regular string) ([]string) {
 // example
 // Ttl("k")
 // Ttl(6.5)
-func(this *myRedis) Ttl(key interface{}) (int) {
-    s , err := redis.Int(this.conn.Do("TTL", key))
+func(this *binRedis) Ttl(key interface{}) (int) {
+    s , err := redis.Int(this.Pool.Get().Do("TTL", key))
     if err != nil { return -2}
     return s
 }
@@ -120,8 +145,8 @@ func(this *myRedis) Ttl(key interface{}) (int) {
 // example
 // Exists("k")
 // Exists(6.5)
-func(this *myRedis) Exists(key interface{}) (bool) {
-    s , err := redis.Bool(this.conn.Do("EXISTS", key))
+func(this *binRedis) Exists(key interface{}) (bool) {
+    s , err := redis.Bool(this.Pool.Get().Do("EXISTS", key))
     if err != nil { return false}
     return s
 }
@@ -129,8 +154,8 @@ func(this *myRedis) Exists(key interface{}) (bool) {
 // example
 // Expire("k",3600)
 // Expire(6.5,3600)
-func(this *myRedis) Expire(key interface{}, seconds int) (bool) {
-    s , err := redis.Bool(this.conn.Do("EXPIRE", key, seconds))
+func(this *binRedis) Expire(key interface{}, seconds int) (bool) {
+    s , err := redis.Bool(this.Pool.Get().Do("EXPIRE", key, seconds))
     if err != nil { return false}
     return s
 }
@@ -138,40 +163,40 @@ func(this *myRedis) Expire(key interface{}, seconds int) (bool) {
 // example
 // ExpireAt("k",172612312)
 // ExpireAt(6.5,172612312)
-func(this *myRedis) ExpireAt(key interface{}, timestamp int) (bool) {
-    s , err := redis.Bool(this.conn.Do("EXPIREAT", key, timestamp))
+func(this *binRedis) ExpireAt(key interface{}, timestamp int) (bool) {
+    s , err := redis.Bool(this.Pool.Get().Do("EXPIREAT", key, timestamp))
     if err != nil { return false}
     return s
 }
 // example
 // Persist("k")
 // Persist(6.5)
-func(this *myRedis) Persist(key interface{}) (bool) {
-    s , err := redis.Bool(this.conn.Do("PERSIST", key))
+func(this *binRedis) Persist(key interface{}) (bool) {
+    s , err := redis.Bool(this.Pool.Get().Do("PERSIST", key))
     if err != nil { return false}
     return s
 }
 // example
 // Incr("k")
 // Incr(6.5)
-func(this *myRedis) Incr(key interface{}) (int) {
-    s , err := redis.Int(this.conn.Do("INCR", key))
+func(this *binRedis) Incr(key interface{}) (int) {
+    s , err := redis.Int(this.Pool.Get().Do("INCR", key))
     if err != nil { return  -1}
     return s
 }
 // example
 // IncrBy("k",10)
 // IncrBy(6.5,10)
-func(this *myRedis) IncrBy(key interface{}, increment int) (int) {
-    s , err := redis.Int(this.conn.Do("INCRBY", key, increment))
+func(this *binRedis) IncrBy(key interface{}, increment int) (int) {
+    s , err := redis.Int(this.Pool.Get().Do("INCRBY", key, increment))
     if err != nil { return  -1}
     return s
 }
 // example
 // Decr("k")
 // Decr(6.5)
-func(this *myRedis) Decr(key interface{}) (int) {
-    s , err := redis.Int(this.conn.Do("DECR", key))
+func(this *binRedis) Decr(key interface{}) (int) {
+    s , err := redis.Int(this.Pool.Get().Do("DECR", key))
     if err != nil { return  -1}
     return s
 }
@@ -182,8 +207,8 @@ func(this *myRedis) Decr(key interface{}) (int) {
 // O(1)
 // 返回值：
 // 减去decrement之后，key的值。
-func(this *myRedis) DecrBy(key interface{}, increment int) (int) {
-    s , err := redis.Int(this.conn.Do("DECRBY", key, increment))
+func(this *binRedis) DecrBy(key interface{}, increment int) (int) {
+    s , err := redis.Int(this.Pool.Get().Do("DECRBY", key, increment))
     if err != nil { return  -1}
     return s
 }
@@ -194,8 +219,8 @@ func(this *myRedis) DecrBy(key interface{}, increment int) (int) {
 // 返回值：
 // 如果field是哈希表中的一个新建域，并且值设置成功，返回1。
 // 如果哈希表中域field已经存在且旧值已被新值覆盖，返回0。
-func(this *myRedis) Hset(key, field, value interface{}) (int) {
-    s , err := redis.Int(this.conn.Do("HSET", key, field, value))
+func(this *binRedis) Hset(key, field, value interface{}) (int) {
+    s , err := redis.Int(this.Pool.Get().Do("HSET", key, field, value))
     if err != nil { return -1 }
     return s
 }
@@ -206,8 +231,8 @@ func(this *myRedis) Hset(key, field, value interface{}) (int) {
 // 返回值：
 // 设置成功，返回1。
 // 如果给定域已经存在且没有操作被执行，返回0。
-func(this *myRedis) HsetNx(key, field, value interface{}) (int) {
-    s , err := redis.Int(this.conn.Do("HSETNX", key, field, value))
+func(this *binRedis) HsetNx(key, field, value interface{}) (int) {
+    s , err := redis.Int(this.Pool.Get().Do("HSETNX", key, field, value))
     if err != nil { return -1 }
     return s
 }
@@ -217,11 +242,11 @@ func(this *myRedis) HsetNx(key, field, value interface{}) (int) {
 // 返回值：
 // 如果命令执行成功，返回True。
 // 当key不是哈希表(hash)类型时，返回False。
-func(this *myRedis) Hmset(key interface{}, m map[string]string) bool {
+func(this *binRedis) Hmset(key interface{}, m map[string]string) bool {
     var args []interface{}
     args = append(args,key)
     for k , v := range m { args = append(args,k,v) }
-    _, err := redis.String(this.conn.Do("HMSET", args...))
+    _, err := redis.String(this.Pool.Get().Do("HMSET", args...))
     if err != nil { return false }
     return true
 }
@@ -233,8 +258,8 @@ func(this *myRedis) Hmset(key interface{}, m map[string]string) bool {
 // 返回值：
 // 给定域的值。
 // 当给定域不存在或是给定key不存在时，返回错误。
-func(this *myRedis) Hget(key, field interface{}) (string, error) {
-    s, err := redis.String(this.conn.Do("HGET", key, field))
+func(this *binRedis) Hget(key, field interface{}) (string, error) {
+    s, err := redis.String(this.Pool.Get().Do("HGET", key, field))
     if err != nil { return "", errors.New("nil returned") }
     return s,nil
 }
@@ -243,8 +268,8 @@ func(this *myRedis) Hget(key, field interface{}) (string, error) {
 // 时间复杂度：O(N)，N为给定域的数量。
 // 返回值：
 // 一个包含多个给定域的关联值的表，表值的排列顺序和给定域参数的请求顺序一样。
-func(this *myRedis) Hmget(args ...interface{}) ([]string) {
-    s , err := redis.Strings(this.conn.Do("HMGET", args...))
+func(this *binRedis) Hmget(args ...interface{}) ([]string) {
+    s , err := redis.Strings(this.Pool.Get().Do("HMGET", args...))
     if err != nil { return []string{} }
     return s
 }
@@ -255,8 +280,8 @@ func(this *myRedis) Hmget(args ...interface{}) ([]string) {
 // 时间复杂度：O(N)，N为哈希表的大小。
 // 返回值：
 // 以列表形式返回哈希表的域和域的值。 若key不存在，返回空列表。
-func(this *myRedis) HgetAll(key interface{}) ([]string) {
-    s , err := redis.Strings(this.conn.Do("HGETALL", key))
+func(this *binRedis) HgetAll(key interface{}) ([]string) {
+    s , err := redis.Strings(this.Pool.Get().Do("HGETALL", key))
     if err != nil { return []string{} }
     return s
 }
@@ -268,8 +293,8 @@ func(this *myRedis) HgetAll(key interface{}) ([]string) {
 // 被成功移除的域的数量，不包括被忽略的域。
 // 注解:在Redis2.4以下的版本里，HDEL每次只能删除单个域，如果你需要在一个原子时间内删除多个域，
 // 请将命令包含在MULTI/ EXEC块内。
-func(this *myRedis) Hdel(args ...interface{}) (int) {
-    number ,err := redis.Int(this.conn.Do("HDEL", args...))
+func(this *binRedis) Hdel(args ...interface{}) (int) {
+    number ,err := redis.Int(this.Pool.Get().Do("HDEL", args...))
     if err != nil { return 0 }
     return number
 }
@@ -281,8 +306,8 @@ func(this *myRedis) Hdel(args ...interface{}) (int) {
 // 返回值：
 // 哈希表中域的数量。
 // 当key不存在时，返回0。
-func(this *myRedis) Hlen(key interface{}) (int) {
-    number ,err := redis.Int(this.conn.Do("HLEN", key))
+func(this *binRedis) Hlen(key interface{}) (int) {
+    number ,err := redis.Int(this.Pool.Get().Do("HLEN", key))
     if err != nil { return 0 }
     return number
 }
@@ -294,8 +319,8 @@ func(this *myRedis) Hlen(key interface{}) (int) {
 // 返回值：
 // 如果哈希表含有给定域，返回1。
 // 如果哈希表不含有给定域，或key不存在，返回0。
-func(this *myRedis) Hexists(key, field interface{}) (bool) {
-    s , err := redis.Bool(this.conn.Do("HEXISTS", key, field))
+func(this *binRedis) Hexists(key, field interface{}) (bool) {
+    s , err := redis.Bool(this.Pool.Get().Do("HEXISTS", key, field))
     if err != nil { return false}
     return s
 }
@@ -308,8 +333,8 @@ func(this *myRedis) Hexists(key, field interface{}) (bool) {
 // 时间复杂度：O(1)
 // 返回值：
 // 执行HINCRBY命令之后，哈希表key中域field的值。
-func(this *myRedis) HincrBy(key , field interface{}, increment int) (int) {
-    s , err := redis.Int(this.conn.Do("HINCRBY", key, field, increment))
+func(this *binRedis) HincrBy(key , field interface{}, increment int) (int) {
+    s , err := redis.Int(this.Pool.Get().Do("HINCRBY", key, field, increment))
     if err != nil { return  -1}
     return s
 }
@@ -317,8 +342,8 @@ func(this *myRedis) HincrBy(key , field interface{}, increment int) (int) {
 // 返回值：
 // 一个包含哈希表中所有域的表。
 // 当key不存在时，返回一个空表。
-func(this *myRedis) Hkeys(key interface{}) ([]string) {
-    s , err := redis.Strings(this.conn.Do("HKEYS", key))
+func(this *binRedis) Hkeys(key interface{}) ([]string) {
+    s , err := redis.Strings(this.Pool.Get().Do("HKEYS", key))
     if err != nil { return []string{} }
     return s
 }
@@ -326,8 +351,8 @@ func(this *myRedis) Hkeys(key interface{}) ([]string) {
 // 返回值：
 // 一个包含哈希表中所有值的表。
 // 当key不存在时，返回一个空表。
-func(this *myRedis) Hvals(key interface{}) ([]string) {
-    s , err := redis.Strings(this.conn.Do("HVALS", key))
+func(this *binRedis) Hvals(key interface{}) ([]string) {
+    s , err := redis.Strings(this.Pool.Get().Do("HVALS", key))
     if err != nil { return []string{} }
     return s
 }
@@ -342,8 +367,8 @@ func(this *myRedis) Hvals(key interface{}) ([]string) {
 // 返回值：
 // 执行LPUSH命令后，列表的长度。但返回错误时，返回-1
 // 注解:在Redis 2.4版本以前的LPUSH命令，都只接受单个value值
-func(this *myRedis) Lpush(args ...interface{}) (int) {
-    s , err := redis.Int(this.conn.Do("LPUSH", args...))
+func(this *binRedis) Lpush(args ...interface{}) (int) {
+    s , err := redis.Int(this.Pool.Get().Do("LPUSH", args...))
     if err != nil { return  -1}
     return s
 }
@@ -352,8 +377,8 @@ func(this *myRedis) Lpush(args ...interface{}) (int) {
 // 时间复杂度：O(1)
 // 返回值：
 // LPUSHX命令执行之后，表的长度
-func(this *myRedis) LpushX(key, value interface{}) (int) {
-    s , err := redis.Int(this.conn.Do("LPUSHX", key, value ))
+func(this *binRedis) LpushX(key, value interface{}) (int) {
+    s , err := redis.Int(this.Pool.Get().Do("LPUSHX", key, value ))
     if err != nil { return  -1}
     return s
 }
@@ -362,8 +387,8 @@ func(this *myRedis) LpushX(key, value interface{}) (int) {
 // 时间复杂度：O(1)
 // 返回值：
 // 执行RPUSH操作后，表的长度
-func(this *myRedis) Rpush(args ...interface{}) (int) {
-    s , err := redis.Int(this.conn.Do("RPUSH", args...))
+func(this *binRedis) Rpush(args ...interface{}) (int) {
+    s , err := redis.Int(this.Pool.Get().Do("RPUSH", args...))
     if err != nil { return  -1}
     return s
 }
@@ -372,8 +397,8 @@ func(this *myRedis) Rpush(args ...interface{}) (int) {
 // 时间复杂度：O(1)
 // 返回值：
 // RPUSHX命令执行之后，表的长度
-func(this *myRedis) RpushX(key, value interface{}) (int) {
-    s , err := redis.Int(this.conn.Do("RPUSHX", key, value))
+func(this *binRedis) RpushX(key, value interface{}) (int) {
+    s , err := redis.Int(this.Pool.Get().Do("RPUSHX", key, value))
     if err != nil { return  -1}
     return s
 }
@@ -381,14 +406,14 @@ func(this *myRedis) RpushX(key, value interface{}) (int) {
 // 返回值：
 // 列表的头元素。
 // 当key不存在时，返回错误。
-func(this *myRedis) Lpop(key interface{}) (string, error) {
-    s , err := redis.String(this.conn.Do("LPOP", key))
+func(this *binRedis) Lpop(key interface{}) (string, error) {
+    s , err := redis.String(this.Pool.Get().Do("LPOP", key))
     if err != nil { return  "",errors.New("List key is not exists")  }
     return s,nil
 }
 // 和Lpop相反
-func(this *myRedis) Rpop(key interface{}) (string, error) {
-    s , err := redis.String(this.conn.Do("RPOP", key))
+func(this *binRedis) Rpop(key interface{}) (string, error) {
+    s , err := redis.String(this.Pool.Get().Do("RPOP", key))
     if err != nil { return  "",errors.New("List key is not exists")  }
     return s,nil
 }
@@ -398,8 +423,8 @@ func(this *myRedis) Rpop(key interface{}) (string, error) {
 // 时间复杂度：O(1)
 // 返回值：
 // 列表key的长度
-func(this *myRedis) Llen(key interface{}) (int) {
-    number ,err := redis.Int(this.conn.Do("LLEN", key))
+func(this *binRedis) Llen(key interface{}) (int) {
+    number ,err := redis.Int(this.Pool.Get().Do("LLEN", key))
     if err != nil { return -1 }
     return number
 }
@@ -420,8 +445,8 @@ func(this *myRedis) Llen(key interface{}) (int) {
 // 时间复杂度:O(S+N)，S为偏移量start，N为指定区间内元素的数量。
 // 返回值:
 // 一个列表，包含指定区间内的元素。
-func(this *myRedis) Lrange(key interface{}, start, stop int) ([]string) {
-    s , err := redis.Strings(this.conn.Do("LRANGE", key, start, stop))
+func(this *binRedis) Lrange(key interface{}, start, stop int) ([]string) {
+    s , err := redis.Strings(this.Pool.Get().Do("LRANGE", key, start, stop))
     if err != nil { return []string{} }
     return s
 }
@@ -434,8 +459,8 @@ func(this *myRedis) Lrange(key interface{}, start, stop int) ([]string) {
 // 返回值：
 // 被移除元素的数量。
 // 因为不存在的key被视作空表(empty list)，所以当key不存在时，LREM命令总是返回0。
-func(this *myRedis) Lrem(key interface{}, count int, value interface{}) (int) {
-    number ,err := redis.Int(this.conn.Do("LREM", key, count,value))
+func(this *binRedis) Lrem(key interface{}, count int, value interface{}) (int) {
+    number ,err := redis.Int(this.Pool.Get().Do("LREM", key, count,value))
     if err != nil { return 0 }
     return number
 }
@@ -444,8 +469,8 @@ func(this *myRedis) Lrem(key interface{}, count int, value interface{}) (int) {
 // 时间复杂度：对头元素或尾元素进行LSET操作，复杂度为O(1)。其他情况下，为O(N)，N为列表的长度。
 // 返回值：
 // 操作成功返回ok，否则返回错误信息
-func(this *myRedis) Lset(key interface{}, index int, value interface{}) (bool) {
-    _ , err := redis.String(this.conn.Do("LSET", key, index, value))
+func(this *binRedis) Lset(key interface{}, index int, value interface{}) (bool) {
+    _ , err := redis.String(this.Pool.Get().Do("LSET", key, index, value))
     if err != nil { return false}
     return true
 }
@@ -473,8 +498,8 @@ func(this *myRedis) Lset(key interface{}, index int, value interface{}) (bool) {
 // 时间复杂度: O(N)，N为被移除的元素的数量。
 // 返回值:
 // 命令执行成功时，返回ok。
-func(this *myRedis) Ltrim(key interface{}, start, stop int) (bool) {
-    _, err := redis.String(this.conn.Do("LTRIM", key, start, stop))
+func(this *binRedis) Ltrim(key interface{}, start, stop int) (bool) {
+    _, err := redis.String(this.Pool.Get().Do("LTRIM", key, start, stop))
     if err != nil { return false }
     return true
 }
@@ -487,8 +512,8 @@ func(this *myRedis) Ltrim(key interface{}, start, stop int) (bool) {
 // 返回值:
 // 列表中下标为index的元素。
 // 如果index参数的值不在列表的区间范围内(out of range)，返回nil
-func(this *myRedis) Lindex(key, index interface{}) (string, error) {
-    s, err := redis.String(this.conn.Do("LINDEX", key, index))
+func(this *binRedis) Lindex(key, index interface{}) (string, error) {
+    s, err := redis.String(this.Pool.Get().Do("LINDEX", key, index))
     if err != nil { return "", errors.New("nil returned") }
     return s,nil
 }
@@ -502,13 +527,13 @@ func(this *myRedis) Lindex(key, index interface{}) (string, error) {
 // 如果命令执行成功，返回插入操作完成之后，列表的长度。
 // 如果没有找到pivot，返回-1。
 // 如果key不存在或为空列表，返回0。
-func(this *myRedis) LinsertBefore(key, pivot, value interface{}) (int) {
-    s , err := redis.Int(this.conn.Do("LINSERT", key, "BEFORE" , pivot, value))
+func(this *binRedis) LinsertBefore(key, pivot, value interface{}) (int) {
+    s , err := redis.Int(this.Pool.Get().Do("LINSERT", key, "BEFORE" , pivot, value))
     if err != nil { return -1 }
     return s
 }
-func(this *myRedis) LinsertAfter(key, pivot, value interface{}) (int) {
-    s , err := redis.Int(this.conn.Do("LINSERT", key, "AFTER" , pivot, value))
+func(this *binRedis) LinsertAfter(key, pivot, value interface{}) (int) {
+    s , err := redis.Int(this.Pool.Get().Do("LINSERT", key, "AFTER" , pivot, value))
     if err != nil { return -1 }
     return s
 }
@@ -538,28 +563,57 @@ func(this *myRedis) LinsertAfter(key, pivot, value interface{}) (int) {
 // 另外的这个列表可以用作消息的备份表：假如一切正常，当消费者完成该消息的处理之后，可以用LREM命令将该消息从备份表删除。
 
 // 另一方面，助手(helper)程序可以通过监视备份表，将超过一定处理时限的消息重新放入队列中去(负责处理该消息的消费者可能已经崩溃)，这样就不会丢失任何消息了。
-func(this *myRedis) RpopLpush(source, destination interface{}) (string, error) {
-    s, err := redis.String(this.conn.Do("RPOPLPUSH", source, destination ))
+func(this *binRedis) RpopLpush(source, destination interface{}) (string, error) {
+    s, err := redis.String(this.Pool.Get().Do("RPOPLPUSH", source, destination))
     if err != nil { return "", errors.New("nil returned") }
     return s,nil
 }
+
+// 将一个或多个 member 元素加入到集合 key 当中，已经存在于集合的 member 元素将被忽略。
+// 假如 key 不存在，则创建一个只包含 member 元素作成员的集合。
+// 当 key 不是集合类型时，返回一个错误。
+
+// 注意：在Redis2.4版本以前， SADD 只接受单个 member 值。
+
+// 时间复杂度: O(N)， N 是被添加的元素的数量。
+// 返回值: 被添加到集合中的新元素的数量，不包括被忽略的元素。
+func(this *binRedis) Sadd(key interface{}, args...interface{}) int {
+    slice := []interface{}{key}
+    slice = append(slice,args...)
+    s, err := redis.Int(this.Pool.Get().Do("SADD", slice...))
+    if err != nil { return -1 }
+    return s
+}
+
+// 返回集合 key 中的所有成员。
+// 不存在的 key 被视为空集合。
+
+// 时间复杂度: O(N)， N 为集合的基数。
+// 返回值: 集合中的所有成员。
+func(this *binRedis) Smembers(key interface{}) ([]string, error){
+    s, err := redis.Strings(this.Pool.Get().Do("SMEMBERS", key))
+    if err != nil { return nil, err}
+    return s, nil
+}
+
+
 // 客户端向服务器发送一个 PING ，然后服务器返回客户端一个 PONG 。
 // 通常用于测试与服务器的连接是否仍然生效，或者用于测量延迟值。
 
 // 时间复杂度：O(1)
 // 返回值：
 // PONG
-func(this *myRedis) Ping() (time.Duration , error) {
+func(this *binRedis) Ping() (time.Duration , error) {
     t := time.Now()
-    _,err := this.conn.Do("PING")
+    _,err := this.Pool.Get().Do("PING")
     if err != nil { return 0, errors.New("Server can't connect") }
     return time.Since(t), nil
 }
 
 // 清空当前数据库中的所有 key 。
 // 此命令从不失败。
-func(this *myRedis) FlushDb() {
-    this.conn.Do("FLUSHDB")
+func(this *binRedis) FlushDb() {
+    this.Pool.Get().Do("FLUSHDB")
 }
 
 

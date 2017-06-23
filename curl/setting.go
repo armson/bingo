@@ -4,7 +4,6 @@ import(
     "net/http"
     "crypto/tls"
     "time"
-    "fmt"
     "github.com/armson/bingo/utils"
 )
 
@@ -73,7 +72,6 @@ func (this *HttpServer) Param(key , value string) *HttpServer {
     } else {
         this.params[key] = []string{value}
     }
-    fmt.Println(this.params)
     return this
 }
 func (this *HttpServer) Params(params map[string]string) *HttpServer {
@@ -85,7 +83,6 @@ func (this *HttpServer) Params(params map[string]string) *HttpServer {
             this.params[key] = []string{value}
         }
     }
-    fmt.Println(this.params)
     return this
 }
 

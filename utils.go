@@ -37,15 +37,15 @@ func nameOfFunction(f interface{}) string {
 }
 func resolveAddress() string {
     var port string
-    p , err := config.String("httpPort")
-    if err != nil {
+    p  := config.String("httpPort")
+    if p == "" {
         port = ":8080"
     } else {
         port = ":" + p
     }
 
-    h , err := config.String("httpAddr")
-    if err == nil {
+    h := config.String("httpAddr")
+    if h == "" {
         return h + port
     }
     return port

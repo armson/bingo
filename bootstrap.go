@@ -27,7 +27,7 @@ func usage(){
 }
 
 func createPIDFile() error {
-    pidPath, err := config.String("pid")
+    pidPath, err := config.Get("pid")
     if err != nil {
         return err
     }
@@ -87,7 +87,7 @@ func init(){
     config.Set("configFile", configFile)
 
     if pid == "" {
-        pid, _ = config.String("pid")
+        pid, _ = config.Get("pid")
     }
     config.Set("pid", pid)
 
@@ -97,7 +97,7 @@ func init(){
     }
    
     if mode == "" {
-        if configMode, err := config.String("runMode"); err == nil {
+        if configMode, err := config.Get("runMode"); err == nil {
             mode = configMode
         }
     }
@@ -108,10 +108,10 @@ func init(){
     SetMode(mode)
     config.Set("runMode", mode)
 
-    if _, err := config.String("accessLog"); err != nil {
+    if _, err := config.Get("accessLog"); err != nil {
         config.Set("accessLog", "/var/log/bingo/access.log")
     }
-    if _, err := config.String("errorLog"); err != nil {
+    if _, err := config.Get("errorLog"); err != nil {
         config.Set("errorLog", "/var/log/bingo/error.log")
     }
 
@@ -120,7 +120,7 @@ func init(){
 }
 
 func deletePIDFile(sign os.Signal){
-    pidPath, _ := config.String("pid")
+    pidPath, _ := config.Get("pid")
     os.Remove(pidPath)
 }
 

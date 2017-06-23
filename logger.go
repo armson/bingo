@@ -39,7 +39,7 @@ func SetLoggerWriter() {
 }
 
 func NewFileWriter() io.Writer {
-    fileName , _ := config.String("accessLog")
+    fileName := config.String("accessLog")
     if err := os.MkdirAll(filepath.Dir(fileName), os.ModePerm); err != nil {
         fmt.Errorf("Can't create accessLog folder on %v", err)
     }
@@ -60,7 +60,7 @@ func ResetLoggerWriter(){
         nowTime := time.Now()
         if modTime.Year() != nowTime.Year() || modTime.YearDay() != nowTime.YearDay() || modTime.Hour() != nowTime.Hour() {
             format := "2006010215"
-            fileName , _ := config.String("accessLog")
+            fileName := config.String("accessLog")
             err := os.Rename(fileName, fileName+"."+modTime.Format(format))
             if err != nil {
                 fmt.Errorf("Can't Rename [%s] file: %v", fileName, err)
@@ -81,8 +81,7 @@ func Logger() HandlerFunc {
         // Process request
         c.Next()
         ResetLoggerWriter()
-        end := time.Now()
-        latency := end.Sub(start)
+
         clientIP := c.ClientIP()
         method := c.Request.Method
         statusCode := c.Writer.Status()
@@ -91,18 +90,18 @@ func Logger() HandlerFunc {
             statusColor = colorForStatus(statusCode)
             methodColor = colorForMethod(method)
         }
+		hd := c.RequestHeaderString()
         comment := c.Errors.ByType(ErrorTypePrivate).String()
-        fmt.Fprintf(defaultLoggerWriter, "[Bingo] %v |%s %3d %s| %13v | %s |%s %s %s| %s |%s %s %s| %s |%s %s %s| %s | %s \n%s",
+
+		end := time.Now()
+		latency := end.Sub(start)
+        fmt.Fprintf(defaultLoggerWriter, "[Bingo] %v |%s %3d %s| %13v | %s |%s %s %s| %s %s | %s \n%s",
             end.Format("2006/01/02 - 15:04:05"),
             statusColor, statusCode, reset,
             latency,
             clientIP,
             methodColor,  method, reset, 
-            c.Request.URL,
-            methodColor, "_COOKIE",reset, 
-            utils.Map.String(c.Cookies()),
-            methodColor, "_POST",reset, 
-            c.PostFormQuery(),
+            c.Request.URL, hd,
             joinString(c.logs),
             comment,
         )
@@ -114,11 +113,11 @@ func joinString(params map[string][]string) (s string) {
     buf := bytes.Buffer{}
     for key, args := range params {
         for k , arg := range args {
-            buf.WriteByte('[')
+            buf.WriteString(" [")
             buf.WriteString(key)
             buf.WriteString("#")
             buf.WriteString(utils.Int.String(k))
-            buf.WriteString("]:")
+            buf.WriteString("] ")
             buf.WriteString(arg)
         }
     }

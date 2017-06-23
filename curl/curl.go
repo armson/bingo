@@ -32,6 +32,9 @@ func (this *HttpServer) Url() string {
 func (this *HttpServer) Query() string {
     return utils.Map.HttpBuildQuery(this.params)
 }
+func (this *HttpServer) CostTime() string {
+	return this.cost.String()
+}
 func (this *HttpServer) Bytes() ([]byte, error) {
     if this.body != nil { return this.body, nil }
     response, err := this.Response()
@@ -113,9 +116,13 @@ func (this *HttpServer) ci() (response *http.Response, err error) {
         client.CheckRedirect = this.setting.CheckRedirect
     }
 
+    start := time.Now()
     for i := 0; this.setting.Retries == -1 || i <= this.setting.Retries; i++ {
         response, err = client.Do(this.request)
         if err == nil { break }
     }
+	this.cost = time.Since(start)
     return response, err
 }
+
+

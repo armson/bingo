@@ -8,10 +8,10 @@ import(
     "math/rand"
 )
 
-type myString string
-var String *myString
+type binString string
+var String *binString
 
-func (this *myString) Join(args ...string) string {
+func (this *binString) Join(args ...string) string {
     buf := bytes.Buffer{}
     for _,v := range args {
         buf.WriteString(v)
@@ -19,15 +19,14 @@ func (this *myString) Join(args ...string) string {
     return buf.String()
 }
 
-
-func (this *myString) Int(s string) int64 {
-    i, err := strconv.ParseInt(s, 10, 64)
+func (this *binString) Int(s string) int {
+    i, err := strconv.ParseInt(s, 10, 0)
     if err != nil {
         return 0
     } 
-    return i
+    return int(i)
 }
-func (this *myString) Bool(s string) bool {
+func (this *binString) Bool(s string) bool {
     value, err := strconv.ParseBool(s)
     if err != nil {
         return false
@@ -35,11 +34,11 @@ func (this *myString) Bool(s string) bool {
     return value
 }
 
-func (this *myString) Escape(s string) string {
+func (this *binString) Escape(s string) string {
     return url.QueryEscape(s)
 }
 
-func (this *myString) UnEscape(s string) string {
+func (this *binString) UnEscape(s string) string {
     s, err := url.QueryUnescape(s)
     if err != nil {
         return ""
@@ -47,7 +46,7 @@ func (this *myString) UnEscape(s string) string {
     return s
 }
 
-func (this *myString) Rand(size int) string {
+func (this *binString) Rand(size int) string {
     chars := "23456789abcdefghjkmnpqrstABCDEFGHJKMNPQRST"
     b := []byte(chars)
     rand.Seed(time.Now().UnixNano())
@@ -57,6 +56,18 @@ func (this *myString) Rand(size int) string {
     }
     return string(r)
 }
+func (this *binString) Signatures(size int) string {
+    chars := "0123456789"
+    b := []byte(chars)
+    rand.Seed(time.Now().UnixNano())
+    r := make([]byte, size)
+    for i := 0; i < size; i++ {
+        r[i] = chars[rand.Intn(len(b))]
+    }
+    return string(r)
+}
+
+
 
 
 
