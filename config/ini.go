@@ -10,6 +10,7 @@ import (
     "strconv"
     "sync"
     "fmt"
+    "time"
 )
 
 var iniContainer = map[string]map[string]string{}
@@ -69,6 +70,15 @@ func Map(sectionName string) (map[string]string) {
         return map[string]string{}
     }
     return iniContainer[sectionName]
+}
+
+func Time(args ...string) (time.Duration) {
+    value, err := Get(args...)
+    if err != nil { return 0 }
+    if value == "" { return 0 }
+    t , err := time.ParseDuration(value)
+    if err != nil { return 0 }
+    return t
 }
 
 

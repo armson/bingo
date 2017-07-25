@@ -10,7 +10,7 @@ import (
 const DEFAULT_REPLICAS = 64
 
 type (
-    binRedisFlexi binRedis
+    binRedisFlexi BinRedis
 )
 var (
     RedisFlexi *binRedisFlexi
@@ -22,16 +22,16 @@ var (
     mapping = make(map[string]string)
 )
 
-func (this *binRedisFlexi) Register(dbs map[string]int) *binRedisFlexi {
+func (bin *binRedisFlexi) Register(dbs map[string]int) *binRedisFlexi {
     if len(dbs) < 1 {
         panic("Redis Consistent Hashing dbs is null.")
     }
     for id , weight := range dbs{
-        this.Add(id, weight)
+		bin.Add(id, weight)
     }
-    return this
+    return bin
 }
-func (this *binRedisFlexi) Add(id string , weight int) *binRedisFlexi {
+func (bin *binRedisFlexi) Add(id string , weight int) *binRedisFlexi {
     mutex.Lock()  
     defer mutex.Unlock()
 
@@ -42,7 +42,7 @@ func (this *binRedisFlexi) Add(id string , weight int) *binRedisFlexi {
     replicas := []int{}
     for i := 1; i <= count; i++ {  
         str := utils.String.Join(id,strconv.Itoa(i))
-        replica := this.hashStr(str)
+        replica := bin.hashStr(str)
         replicas = append(replicas,replica)
         hashRing = append(hashRing,replica)
         positions[replica] = id
@@ -50,17 +50,17 @@ func (this *binRedisFlexi) Add(id string , weight int) *binRedisFlexi {
     nodes[id] = replicas
     sort.Ints(hashRing)
     nodeCount = nodeCount + 1
-    return this
+    return bin
 }
-func (this *binRedisFlexi) Lookup(key string) string {
+func (bin *binRedisFlexi) Use(key string) string {
     mutex.RLock()  
     defer mutex.RUnlock()
 
     if nodeCount < 1 { return "" }
     if nodeCount == 1 {
-        for k,_ := range nodes { return k }
+        for k, _ := range nodes { return k }
     }
-    i := sort.SearchInts(hashRing, this.hashStr(key))
+    i := sort.SearchInts(hashRing, bin.hashStr(key))
     pos := 0
     if i < len(hashRing) {
         pos = i
@@ -69,48 +69,16 @@ func (this *binRedisFlexi) Lookup(key string) string {
     n := positions[pos]
     return mapping[n]
 }
-func (this *binRedisFlexi) SetMap(maps map[string]string){
+
+func (_ *binRedisFlexi) SetMap(maps map[string]string){
     mapping = maps
 }
 
-
-func (this *binRedisFlexi) hashStr(key string) int {
+func (_ *binRedisFlexi) hashStr(key string) int {
     u := crc32.ChecksumIEEE([]byte(key))
-    return int(u) 
+    return int(u)
 }
 
-func(this *binRedisFlexi) Set(args ...interface{}) bool {
-    p := this.Lookup(args[0].(string))
-    return Redis.Use(p).Set(args...)
-}
-func(this *binRedisFlexi) Get(key interface{}) (string, error) {
-    p := this.Lookup(key.(string))
-    return Redis.Use(p).Get(key)
-}
-func(this *binRedisFlexi) SetEx(key , value interface{}, seconds int) bool {
-    p := this.Lookup(key.(string))
-    return Redis.Use(p).SetEx(key,value,seconds)
-}
-func(this *binRedisFlexi) Ttl(key interface{}) (int) {
-    p := this.Lookup(key.(string))
-    return Redis.Use(p).Ttl(key)
-}
-func(this *binRedisFlexi) Expire(key interface{}, seconds int) (bool) {
-    p := this.Lookup(key.(string))
-    return Redis.Use(p).Expire(key,seconds)
-}
-func(this *binRedisFlexi) Del(key string) (int) {
-    p := this.Lookup(key)
-    return Redis.Use(p).Del(key)
-}
-func(this *binRedisFlexi) Sadd(key interface{}, args ...interface{}) int {
-    p := this.Lookup(key.(string))
-    return Redis.Use(p).Sadd(key, args...)
-}
-func(this *binRedisFlexi) Smembers(key interface{}) ([]string, error){
-    p := this.Lookup(key.(string))
-    return Redis.Use(p).Smembers(key)
-}
 
 
 

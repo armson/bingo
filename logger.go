@@ -6,11 +6,10 @@ import (
     "os"
     "time"
     "github.com/mattn/go-isatty"
-    "github.com/armson/bingo/utils"
     "github.com/armson/bingo/config"
     "path/filepath"
-    "bytes"
     "sync"
+	"strings"
 )
 
 var (
@@ -102,27 +101,11 @@ func Logger() HandlerFunc {
             clientIP,
             methodColor,  method, reset, 
             c.Request.URL, hd,
-            joinString(c.logs),
+            strings.Join(c.logs," "),
             comment,
         )
 
     }
-}
-func joinString(params map[string][]string) (s string) {
-    if len(params) < 1 { return }
-    buf := bytes.Buffer{}
-    for key, args := range params {
-        for k , arg := range args {
-            buf.WriteString(" [")
-            buf.WriteString(key)
-            buf.WriteString("#")
-            buf.WriteString(utils.Int.String(k))
-            buf.WriteString("] ")
-            buf.WriteString(arg)
-        }
-    }
-    s = buf.String()
-    return
 }
 
 func colorForStatus(code int) string {

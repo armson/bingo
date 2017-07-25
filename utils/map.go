@@ -8,7 +8,7 @@ import(
 type binMap string
 var Map *binMap
 
-func (this *binMap) HttpBuildQuery(params map[string][]string) (s string) {
+func (_ *binMap) HttpBuildQuery(params map[string][]string) (s string) {
     if len(params) < 1 { return }
     buf := bytes.Buffer{}
     for k, arg := range params {
@@ -24,7 +24,7 @@ func (this *binMap) HttpBuildQuery(params map[string][]string) (s string) {
     return
 }
 
-func (this *binMap) BuildQuery(params map[string]string) (s string) {
+func (_ *binMap) BuildQuery(params map[string]string) (s string) {
     if len(params) < 1 { return }
     buf := bytes.Buffer{}
     for k, arg := range params {
@@ -38,7 +38,7 @@ func (this *binMap) BuildQuery(params map[string]string) (s string) {
     return
 }
 
-func (this *binMap) String(params map[string]string) (s string) {
+func (_ *binMap) String(params map[string]string) (s string) {
     if len(params) < 1 { return }
     buf := bytes.Buffer{}
     for k, arg := range params {
@@ -51,28 +51,41 @@ func (this *binMap) String(params map[string]string) (s string) {
     s = s[0 : len(s)-1]
     return
 }
-
-func (this *binMap) Column(arrs []map[string]string, rowKey string) []string {
-    rows := []string{}
-    if len(arrs) < 1 {
-        return rows
+func (_ *binMap) Keys(params map[string]string) ([]string) {
+    slice := []string{}
+    if len(params) < 1 { return slice }
+    for key,  _ := range params {
+        slice = append(slice, key)
     }
-    for _, arr := range arrs {
-        rows = append(rows, arr[rowKey])
-    }
-    return rows
+    return slice
 }
 
-func (this *binMap) Combine(arrs []map[string]string, rowKey string) map[string]map[string]string {
-    rows := map[string]map[string]string{}
-    if len(arrs) < 1 {
-        return rows
-    }
-    for _, arr := range arrs {
-        rows[arr[rowKey]] = arr
-    }
-    return rows
+func (_ *binMap) Values(params map[string]string) ([]string) {
+	slice := []string{}
+	if len(params) < 1 { return slice }
+	for _ , value := range params {
+		slice = append(slice, value)
+	}
+	return slice
 }
+
+func (_ *binMap) Merge(params ...map[string]string) (map[string]string) {
+	m := map[string]string{}
+	len := len(params)
+	if len == 0 {return m}
+	if len == 1 {return params[0]}
+	m = params[0]
+	for i := 1; i < len; i ++ {
+		for k,v := range params[i] {
+			m[k] = v
+		}
+	}
+	return m
+}
+
+
+
+
 
 
 

@@ -12,6 +12,7 @@ import(
     "net/url"
     "encoding/json"
     "github.com/armson/bingo/utils"
+	"github.com/armson/bingo/config"
 	"bytes"
 )
 
@@ -54,7 +55,7 @@ type Context struct {
     Accepted []string
 
     cookieSetting   map[string]string
-    logs    map[string][]string
+    logs    []string
 }
 var _ context.Context = &Context{}
 
@@ -222,8 +223,10 @@ func (c *Context) JSON(code int, obj interface{}) {
     if err := json.NewEncoder(c.Writer).Encode(obj); err != nil {
         panic(err)
     }
-	s ,_ := json.Marshal(obj)
-	c.Logs("response", string(s))
+	if config.Bool("default","enableLog") && config.Bool("response","enableLog") {
+		s ,_ := json.Marshal(obj)
+		c.Logs("Response", string(s))
+	}
 }
 func (c *Context) StringOK(format string, values ...interface{}) {
     c.String(http.StatusOK,format,values...)
@@ -287,25 +290,18 @@ func (c *Context) Redirect(location string) {
 /* 设置日志  */
 /************/
 func (c *Context) Logs(args ...string) {
-    var nodeName string
-    var nodeValue string
-    if len(args) < 1 { 
-        panic("Func (c *Context) Logs params is shorter")
-    }
-    if len(args) == 1 {
-        nodeName = utils.Int.String(len(c.logs))
-        nodeName = "node#"+nodeName
-        nodeValue = args[0]
-    }
-    if len(args) > 1 {
-        nodeName = "node#"+args[0]
-        nodeValue = args[1]
-    }
-    var node = []string{}
-    if _, exists := c.logs[nodeName]; exists {
-        node = c.logs[nodeName]
-    }
-    c.logs[nodeName] = append(node, nodeValue)
+	var message string
+	if len(args) < 1 {
+		panic("Func (c *Context) Logs params is shorter")
+	}
+	pose := utils.Int.String(len(c.logs))
+	if len(args) == 1 {
+		message = utils.String.Join("[Node##",pose,"] ",args[0])
+	}
+	if len(args) > 1 {
+		message = utils.String.Join("[",args[0],"##",pose,"] ",args[1])
+	}
+	c.logs = append(c.logs , message)
 }
 
 func (c *Context) File(filepath string) {
@@ -368,7 +364,7 @@ func (c *Context) reset() {
     c.Errors = c.Errors[0:0]
     c.Accepted = nil
     c.cookieSetting = defaultCookieSetting
-    c.logs = map[string][]string{}
+    c.logs = []string{}
 }
 func (c *Context) HandlerName() string {
     return nameOfFunction(c.handlers.Last())
