@@ -44,3 +44,12 @@ func (bin *myDuration) EndMS() int {
 	t,_ := time.Parse(format,now.Format(format))
 	return int(t.UnixNano()/1000000)-1
 }
+
+func (_ *myDuration) Format(layout string, a interface{}) string {
+	seconds, err := Interface.Int64(a)
+	if err != nil {
+		return ""
+	}
+	t := time.Unix(seconds,0)
+	return t.Format(layout)
+}

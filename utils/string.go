@@ -33,6 +33,14 @@ func (_ *binString) Int64(s string) int64 {
     }
     return i
 }
+func (_ *binString) Float(s string) float64 {
+	i, err := strconv.ParseFloat(s,64)
+    if err != nil {
+        return 0
+    }
+    return i
+}
+
 func (_ *binString) Bool(s string) bool {
     value, err := strconv.ParseBool(s)
     if err != nil {

@@ -210,6 +210,8 @@ func (c *Context) Cookies() (m map[string]string) {
 /***********************************/
 func (c *Context) String(code int, format string, values ...interface{}) {
     c.Status(code)
+	c.Header("Access-Control-Allow-Origin","*")
+	c.Header("Access-Control-Allow-Methods","POST, GET, OPTIONS, PUT, DELETE, HEAD")
     writeContentType(c.Writer, plainContentType)
     if len(values) > 0 {
         fmt.Fprintf(c.Writer, format, values...)
@@ -219,6 +221,8 @@ func (c *Context) String(code int, format string, values ...interface{}) {
 }
 func (c *Context) JSON(code int, obj interface{}) {
     c.Status(code)
+    c.Header("Access-Control-Allow-Origin","*")
+    c.Header("Access-Control-Allow-Methods","POST, GET, OPTIONS, PUT, DELETE, HEAD")
     writeContentType(c.Writer, jsonContentType)
     if err := json.NewEncoder(c.Writer).Encode(obj); err != nil {
         panic(err)
