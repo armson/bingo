@@ -7,6 +7,7 @@ import (
     "time"
     "github.com/mattn/go-isatty"
     "github.com/armson/bingo/config"
+    "github.com/armson/bingo/utils"
     "path/filepath"
     "sync"
 	"strings"
@@ -141,3 +142,121 @@ func colorForMethod(method string) string {
         return reset
     }
 }
+
+/***********************************/
+/* cron日志 */
+/***********************************/
+var defaultCronLoggerWriter io.Writer
+var CronOnlyOne sync.Once
+
+func SetCronLoggerWriter() {
+	CronOnlyOne.Do(func() {
+		if runMode == debugCode {
+			defaultCronLoggerWriter = os.Stdout
+		}
+		if runMode == releaseCode {
+			defaultCronLoggerWriter = NewCronFileWriter()
+		}
+	})
+}
+
+func NewCronFileWriter() io.Writer {
+	fileName := config.String("task","accessLog")
+	if err := os.MkdirAll(filepath.Dir(fileName), os.ModePerm); err != nil {
+		fmt.Errorf("Can't create task accessLog folder on %v", err)
+	}
+	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_APPEND|os.O_RDWR, os.ModePerm)
+	if err != nil {
+		fmt.Errorf("Can't create task accessLog file: %v", err)
+	}
+	return file
+}
+
+type CronLogger struct {
+	Begin time.Time
+	Messages    []string
+}
+
+func NewCronLogger() *CronLogger{
+	return &CronLogger{
+		Begin: time.Now(),
+		Messages: []string{},
+	}
+}
+func (log *CronLogger) Record(args ...string) {
+	if config.Bool("task","enableLog") == false || config.Bool("default","enableLog") == false {
+		return
+	}
+
+	var message string
+	if len(args) < 1 {
+		panic("Func Task Logs params is shorter")
+	}
+	pose := utils.Int.String(len(log.Messages))
+	if len(args) == 1 {
+		message = utils.String.Join("[Node##",pose,"] ",args[0])
+	}
+	if len(args) > 1 {
+		message = utils.String.Join("[",args[0],"##",pose,"] ",args[1])
+	}
+	log.Messages = append(log.Messages , message)
+}
+func (log *CronLogger) Save(script string, err ...bool) {
+	if config.Bool("task","enableLog") == false || config.Bool("default","enableLog") == false {
+		return
+	}
+	isTerm := true
+	if w, ok := defaultCronLoggerWriter.(*os.File); !ok || !isatty.IsTerminal(w.Fd()) {
+		isTerm = false
+	}
+	log.ResetCronLoggerWriter()
+
+	var resultColor string
+	result := "ERROR"
+	if isTerm {
+		resultColor = red
+		if len(err) == 0 || err[0] == true {
+			resultColor = green
+		}
+	}
+	if len(err) == 0 || err[0] == true {
+		result = "SUCCESS"
+	}
+
+	end := time.Now()
+	latency := end.Sub(log.Begin)
+
+	fmt.Fprintf(defaultCronLoggerWriter, "[Bingo] %v |%s %s %s| %13v | %s  | %s \n",
+		end.Format("2006/01/02 - 15:04:05"),
+		resultColor, result, reset,
+		latency,
+		script,
+		strings.Join(log.Messages," "),
+	)
+}
+func (log *CronLogger) ResetCronLoggerWriter(){
+	if w, ok := defaultCronLoggerWriter.(*os.File); ok {
+		file ,err := w.Stat()
+		if err != nil {
+			fmt.Errorf("Can't Stat accessLog file: %v", err)
+		}
+		modTime := file.ModTime()
+		nowTime := time.Now()
+		if modTime.Year() != nowTime.Year() || modTime.YearDay() != nowTime.YearDay() || modTime.Hour() != nowTime.Hour() {
+			format := "2006010215"
+			fileName := config.String("task","accessLog")
+			err := os.Rename(fileName, fileName+"."+modTime.Format(format))
+			if err != nil {
+				fmt.Errorf("Can't Rename [%s] file: %v", fileName, err)
+			}
+			defaultCronLoggerWriter = NewCronFileWriter()
+		}
+	}
+}
+
+func (log *CronLogger) Logs(args ...string) {
+	log.Record(args...)
+}
+
+
+
