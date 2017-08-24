@@ -7,10 +7,10 @@ import(
     "crypto/x509"
 )
 
-type myRsa struct{}
-var Rsa *myRsa = &myRsa{}
 
-func (this *myRsa) Encode(plainText, publicKey []byte) (string) {
+var Rsa *binRsa = &binRsa{}
+
+func (*binRsa) Encode(plainText, publicKey []byte) (string) {
     block, _ := pem.Decode(publicKey)
     if block == nil {
         panic("public key error")
@@ -28,7 +28,7 @@ func (this *myRsa) Encode(plainText, publicKey []byte) (string) {
 }
 
 
-func (this *myRsa) Decode(cipherText string, privateKey []byte) []byte {
+func (*binRsa) Decode(cipherText string, privateKey []byte) []byte {
     block, _ := pem.Decode(privateKey)
     if block == nil {
         panic("private key error")

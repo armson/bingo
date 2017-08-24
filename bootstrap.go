@@ -59,7 +59,7 @@ func init(){
     var configFile string
     var mode string
     var pid string
-    //var showConfig bool
+
     flag.StringVar(&configFile, "f", "conf/app.conf", "Configuration file path.")
     flag.StringVar(&configFile, "conf", "conf/app.conf", "Configuration file path.")
     flag.StringVar(&mode, "m", "", "Set run mode.")
@@ -67,7 +67,7 @@ func init(){
     flag.StringVar(&pid, "pid", "", "Process identifier path")
     flag.BoolVar(&isShowVersion, "version", false, "Print version information.")
     flag.BoolVar(&isShowVersion, "v", false, "Print version information.")
-    //flag.BoolVar(&showConfig, "t", false, "Show Configuration information.")
+
     flag.Usage = usage
     flag.Parse()
 
@@ -75,16 +75,11 @@ func init(){
         PrintVersion()
         os.Exit(0)  
     }
-    // if showConfig {
-    //     config.PrintConfig()
-    //     os.Exit(0) 
-    // }
+    // 如果未读取到配置文件，则采用默认的配置
     err := config.Load(configFile)
-    if err != nil {
-        fmt.Println(err)
-        os.Exit(0)
+    if err == nil {
+        config.Set("configFile", configFile)
     }
-    config.Set("configFile", configFile)
 
     if pid == "" {
         pid, _ = config.Get("pid")
@@ -101,19 +96,13 @@ func init(){
             mode = configMode
         }
     }
+
     if mode != DebugMode && mode != ReleaseMode {
         fmt.Println(errors.New("run mode unknown ,it must be debug or release"))
         os.Exit(0)
     }
     SetMode(mode)
     config.Set("runMode", mode)
-
-    if _, err := config.Get("accessLog"); err != nil {
-        config.Set("accessLog", "/var/log/bingo/access.log")
-    }
-    if _, err := config.Get("errorLog"); err != nil {
-        config.Set("errorLog", "/var/log/bingo/error.log")
-    }
 
     //注册信号方法
     signal.RegisterSignalHandler(syscall.SIGQUIT,deletePIDFile)

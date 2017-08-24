@@ -13,7 +13,6 @@ import (
     "time"
 )
 
-var iniContainer = map[string]map[string]string{}
 var (
     bCommentA       byte = '#'
     bCommentB       byte = ';'
@@ -26,7 +25,7 @@ var (
     mutex sync.Mutex
     once  sync.Once
 )
-const DEFAULTSECTION  = "default"
+const defaultSection  = "default"
 
 func Int(args ...string) (int) {
     value, err := Get(args...)
@@ -34,7 +33,7 @@ func Int(args ...string) (int) {
     i, err := strconv.ParseInt(value, 10, 64)
     if err != nil {
         return -1
-    } 
+    }
     return int(i)
 }
 
@@ -66,11 +65,16 @@ func Float(args ...string) (float64) {
 
 func Map(sectionName string) (map[string]string) {
     sectionName = strings.ToLower(sectionName)
-    if _, ok := iniContainer[sectionName]; !ok {
+    if _, ok := defaultConfigs[sectionName]; !ok {
         return map[string]string{}
     }
-    return iniContainer[sectionName]
+    return defaultConfigs[sectionName]
 }
+
+func Default() (map[string]map[string]string) {
+    return defaultConfigs
+}
+
 
 func Time(args ...string) (time.Duration) {
     value, err := Get(args...)
@@ -89,7 +93,7 @@ func Get(args ...string) (string , error) {
     }
     var sectionName string
     if len(args) == 1 { 
-        sectionName = DEFAULTSECTION  
+        sectionName = defaultSection
     } else {
         sectionName = args[0]
     }
@@ -97,13 +101,13 @@ func Get(args ...string) (string , error) {
     sectionName = strings.ToLower(sectionName)
     name = strings.ToLower(name)
 
-    if _, ok := iniContainer[sectionName]; !ok {
+    if _, ok := defaultConfigs[sectionName]; !ok {
         return "", fmt.Errorf("config section [%s] is not exists" , sectionName)
     }
-    if _, ok := iniContainer[sectionName][name]; !ok {
+    if _, ok := defaultConfigs[sectionName][name]; !ok {
         return "", fmt.Errorf("config section [%s] key [%s] is not exists" , sectionName, name)
     }
-    return iniContainer[sectionName][name], nil
+    return defaultConfigs[sectionName][name], nil
 }
 
 func Set(args ...string) (error) {
@@ -117,7 +121,7 @@ func Set(args ...string) (error) {
     
     var sectionName string
     if lenArgs == 2 { 
-        sectionName = DEFAULTSECTION
+        sectionName = defaultSection
     } else {
         sectionName = args[0]
     }
@@ -132,20 +136,20 @@ func Set(args ...string) (error) {
     sectionName = strings.TrimSpace(sectionName)
     sectionName = strings.ToLower(sectionName)
 
-    _, sectionExists := iniContainer[sectionName]
+    _, sectionExists := defaultConfigs[sectionName]
     if sectionExists {
-        iniContainer[sectionName][name] = value
+        defaultConfigs[sectionName][name] = value
         return nil
     }
     section := map[string]string{}
     section[name] = value
-    iniContainer[sectionName] = section
+    defaultConfigs[sectionName] = section
     return nil
 }
 
 func Load(filename string) (error) {
     if len(filename) < 1 { 
-        return errors.New("Config file is required") 
+        return errors.New("Config file is required")
     }
     if err := parseFile(filename); err != nil {
         return err
@@ -156,14 +160,14 @@ func Load(filename string) (error) {
     return nil
 }
 func checkConfig()(error){
-    if len(iniContainer) < 1 {
+    if len(defaultConfigs) < 1 {
         return errors.New("Config's data is NULL ")
     }
     return nil
 }
 
 func parseFile(filename string) error {
-    currentSection := DEFAULTSECTION
+    currentSection := defaultSection
     fp, err := os.Open(filename)
     if err != nil { 
         return err 
@@ -210,14 +214,14 @@ func parseLine(sectionName string, line []byte) error {
     value = bytes.Trim(value, bDoubleQuote)
 
     sectionName = strings.ToLower(sectionName)
-    _, sectionExists := iniContainer[sectionName]
+    _, sectionExists := defaultConfigs[sectionName]
     if sectionExists {
-        iniContainer[sectionName][string(name)] = string(value)
+        defaultConfigs[sectionName][string(name)] = string(value)
         return nil
     }
     section := map[string]string{}
     section[string(name)] = string(value)
-    iniContainer[sectionName] = section
+    defaultConfigs[sectionName] = section
 
     return nil
 }

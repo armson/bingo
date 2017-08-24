@@ -1,10 +1,5 @@
 package bingo
 
-import (
-	"io"
-	"os"
-)
-
 const (
 	DebugMode   string = "debug"
 	ReleaseMode string = "release"
@@ -13,8 +8,6 @@ const (
 	debugCode   = iota
 	releaseCode   
 )
-
-var DefaultErrorWriter io.Writer = os.Stderr
 
 var runMode = debugCode
 var modeName = DebugMode

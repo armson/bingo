@@ -7,7 +7,7 @@ import (
 )
 
 type Crontab struct {
-	Log *CronLogger
+	Log *CronAccessLog
 }
 
 func (trace *Crontab)Logs(args ...string) {
@@ -17,12 +17,11 @@ func (trace *Crontab)Logs(args ...string) {
 type CronHandle func(*Crontab)
 
 func Cron(handle CronHandle, delay string){
-	SetCronLoggerWriter()
 	d, _ := time.ParseDuration(delay)
 	go func(){
 		for {
 			time.Sleep(d)
-			log := NewCronLogger()
+			log := NewCronAccessLog()
 			corn := &Crontab{
 				Log:log,
 			}

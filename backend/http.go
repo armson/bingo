@@ -1,4 +1,4 @@
-package curl
+package backend
 
 // 以POST举例，其他方法雷同
 // c := curl.Post("http://open.100.com/client/v1/store/city?clientType=3")

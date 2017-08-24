@@ -4,6 +4,25 @@ import(
     "bytes"
 )
 
+type binAes struct{
+    length  int
+    iv      []byte
+}
+
+type binBase64 struct{}
+
+type binDes struct{
+    length  int
+    iv      []byte
+}
+
+type binTripleDes struct{
+    length  int
+    iv      []byte
+}
+
+type binRsa struct{}
+
 func ZeroPadding(ciphertext []byte, blockSize int) []byte {
     padding := blockSize - len(ciphertext)%blockSize
     padtext := bytes.Repeat([]byte{0}, padding)
