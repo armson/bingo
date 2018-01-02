@@ -11,6 +11,7 @@ import (
 	"strings"
 	"net/http/httputil"
 	"bytes"
+	"runtime"
 )
 
 /***********************************/
@@ -39,8 +40,9 @@ func Logger() HandlerFunc {
 
 		end := time.Now()
 		latency := end.Sub(start)
-		fmt.Fprintf(log.w, "[Bingo] %v |%s %3d %s| %13v | %s |%s %s %s| %s %s | %s \n%s",
+		fmt.Fprintf(log.w, "[Bingo] %v | Gx:%d |%s %3d %s| %13v | %s |%s %s %s| %s %s | %s \n%s",
 			end.Format("2006/01/02 - 15:04:05"),
+			runtime.NumGoroutine(),
 			statusColor, statusCode, reset,
 			latency,
 			clientIP,
@@ -82,7 +84,7 @@ func (log *accessLog) Write() io.Writer {
 	return log.w
 }
 
-func (*accessLog) Rename(f os.FileInfo) bool {
+func (log *accessLog) Rename(f os.FileInfo) bool {
 	modTime := f.ModTime()
 	nowTime := time.Now()
 	if modTime.Year() != nowTime.Year() || modTime.YearDay() != nowTime.YearDay() || modTime.Hour() != nowTime.Hour() {
@@ -92,6 +94,8 @@ func (*accessLog) Rename(f os.FileInfo) bool {
 		if err != nil {
 			fmt.Errorf("Can't Rename [%s] file: %v", fileName, err)
 		}
+		defaultAccessWrite = NewFileWriter(log)
+		log.w = defaultAccessWrite
 		return true
 	}
 	return false
@@ -130,7 +134,7 @@ func (log *errorLog) Write() io.Writer {
 	return log.w
 }
 
-func (*errorLog) Rename(f os.FileInfo) bool {
+func (log *errorLog) Rename(f os.FileInfo) bool {
 	modTime := f.ModTime()
 	nowTime := time.Now()
 	if modTime.Year() != nowTime.Year() || modTime.YearDay() != nowTime.YearDay() {
@@ -140,6 +144,8 @@ func (*errorLog) Rename(f os.FileInfo) bool {
 		if err != nil {
 			fmt.Errorf("Can't Rename [%s] file: %v", fileName, err)
 		}
+		defaultErrorWrite = NewFileWriter(log)
+		log.w = defaultErrorWrite
 		return true
 	}
 	return false
@@ -171,6 +177,18 @@ func Recovery() HandlerFunc {
 			}
 		}()
 		c.Next()
+	}
+}
+
+
+func Recover(){
+	if err := recover(); err != nil {
+		stack := stack(3)
+		fmt.Fprintf(defaultErrorWrite, "[Bingo] %v \n[Recovery] panic recovered:\n%s\n[Error] %s\n%s",
+			time.Now().Format("2006/01/02 - 15:04:05"),
+			err,
+			stack,
+			reset)
 	}
 }
 
@@ -271,7 +289,7 @@ func (log *CronAccessLog) Write() io.Writer {
 	return log.w
 }
 
-func (*CronAccessLog) Rename(f os.FileInfo) bool {
+func (log *CronAccessLog) Rename(f os.FileInfo) bool {
 	modTime := f.ModTime()
 	nowTime := time.Now()
 	if modTime.Year() != nowTime.Year() || modTime.YearDay() != nowTime.YearDay() || modTime.Hour() != nowTime.Hour() {
@@ -281,6 +299,8 @@ func (*CronAccessLog) Rename(f os.FileInfo) bool {
 		if err != nil {
 			fmt.Errorf("Can't Rename [%s] file: %v", fileName, err)
 		}
+		defaultCronAccessWrite = NewFileWriter(log)
+		log.w = defaultCronAccessWrite
 		return true
 	}
 	return false

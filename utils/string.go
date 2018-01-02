@@ -6,12 +6,13 @@ import(
     "net/url"
     "time"
     "math/rand"
+    "strings"
 )
 
 type binString string
 var String *binString
 
-func (_ *binString) Join(args ...string) string {
+func (*binString) Join(args ...string) string {
     buf := bytes.Buffer{}
     for _,v := range args {
         buf.WriteString(v)
@@ -19,21 +20,21 @@ func (_ *binString) Join(args ...string) string {
     return buf.String()
 }
 
-func (_ *binString) Int(s string) int {
+func (*binString) Int(s string) int {
     i, err := strconv.ParseInt(s, 10, 0)
     if err != nil {
         return 0
     } 
     return int(i)
 }
-func (_ *binString) Int64(s string) int64 {
+func (*binString) Int64(s string) int64 {
     i, err := strconv.ParseInt(s, 10, 64)
     if err != nil {
         return 0
     }
     return i
 }
-func (_ *binString) Float(s string) float64 {
+func (*binString) Float(s string) float64 {
 	i, err := strconv.ParseFloat(s,64)
     if err != nil {
         return 0
@@ -41,7 +42,7 @@ func (_ *binString) Float(s string) float64 {
     return i
 }
 
-func (_ *binString) Bool(s string) bool {
+func (*binString) Bool(s string) bool {
     value, err := strconv.ParseBool(s)
     if err != nil {
         return false
@@ -49,11 +50,11 @@ func (_ *binString) Bool(s string) bool {
     return value
 }
 
-func (_ *binString) Escape(s string) string {
+func (*binString) Escape(s string) string {
     return url.QueryEscape(s)
 }
 
-func (_ *binString) UnEscape(s string) string {
+func (*binString) UnEscape(s string) string {
     s, err := url.QueryUnescape(s)
     if err != nil {
         return ""
@@ -61,7 +62,7 @@ func (_ *binString) UnEscape(s string) string {
     return s
 }
 
-func (_ *binString) Rand(size int) string {
+func (*binString) Rand(size int) string {
     chars := "23456789abcdefghjkmnpqrstABCDEFGHJKMNPQRST"
     b := []byte(chars)
     rand.Seed(time.Now().UnixNano())
@@ -71,7 +72,7 @@ func (_ *binString) Rand(size int) string {
     }
     return string(r)
 }
-func (_ *binString) Signatures(size int) string {
+func (*binString) Signatures(size int) string {
     chars := "0123456789"
     b := []byte(chars)
     rand.Seed(time.Now().UnixNano())
@@ -82,6 +83,66 @@ func (_ *binString) Signatures(size int) string {
     return string(r)
 }
 
+func (*binString) Remove(s string, old ...string) string {
+    oldNew := []string{}
+    for _, k := range old {
+        oldNew = append(oldNew, k, "")
+    }
+    r := strings.NewReplacer(oldNew...)
+    return r.Replace(s)
+}
+
+const underLine  = '_'
+const toUpper  = 'a' - 'A'
+func (*binString) Hump(args ...string) string {
+    bs := []byte(args[0])
+    if len(args) > 1 {
+        bs = []byte(strings.Join(args, "_"))
+    }
+
+    buf := bytes.Buffer{}
+    preIsUnderLine := false
+    for _ , value := range bs {
+        if preIsUnderLine == false && value != underLine {
+            buf.WriteByte(value)
+        }
+        if preIsUnderLine == true && value != underLine {
+			if value <= 'z' && 'a' <= value {
+				value -= toUpper
+			}
+			buf.WriteByte(value)
+        }
+		preIsUnderLine = value == underLine
+    }
+	return buf.String()
+}
+
+func (*binString) UnderLine(args ...string) string {
+    bs := []byte(args[0])
+    if len(args) > 1 {
+        bs = []byte(strings.Join(args, "_"))
+    }
+
+    buf := bytes.Buffer{}
+	preIsUnderLine := false
+    for _ , value := range bs {
+        if value <= 'Z' && 'A' <= value {
+            if preIsUnderLine == false {
+                buf.WriteByte(underLine)
+            }
+            value += toUpper
+        }
+        buf.WriteByte(value)
+		preIsUnderLine = value == underLine
+    }
+    return buf.String()
+}
+func (*binString) Domain(s string) string {
+    u, _ := url.Parse(s)
+    ss := strings.Split(u.Host, ".")
+    if len(ss) < 3 {return u.Host }
+    return ss[len(ss)-2]+"."+ss[len(ss)-1]
+}
 
 
 

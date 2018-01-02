@@ -63,6 +63,19 @@ func Float(args ...string) (float64) {
     return i
 }
 
+func Slice(args ...string) (slice []string) {
+	value, err := Get(args...)
+	if value = strings.TrimSpace(value); err != nil || value == "" {
+		return nil
+	}
+	for _ , arr := range strings.Split(value, ",") {
+		if arr = strings.TrimSpace(arr); arr != "" {
+			slice = append(slice, arr)
+		}
+	}
+	return
+}
+
 func Map(sectionName string) (map[string]string) {
     sectionName = strings.ToLower(sectionName)
     if _, ok := defaultConfigs[sectionName]; !ok {

@@ -144,7 +144,7 @@ func (group *RouterGroup) StaticFile(relativePath, filepath string) IRoutes {
         panic("URL parameters can not be used when serving a static file")
     }
     handler := func(c *Context) {
-        c.File(filepath)
+        c.ServeFile(filepath)
     }
     group.GET(relativePath, handler)
     group.HEAD(relativePath, handler)

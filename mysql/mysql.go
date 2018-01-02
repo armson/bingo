@@ -9,16 +9,49 @@ import (
 	"encoding/json"
     "time"
 )
+var (
+	mysqlCluster = map[string]*sql.DB{}
+	mysqlDb = []string{} //clusterID单独存储，主要是为了方便指定默认的数据库
+	mysqlAlias = make(map[string]string) //{"cache1":"db0", "cache2":"db1", "cache3":"db2","db0":"db0", "db1":"db1", "db2":"db2"}
+	isValid = false
+)
+
+
+func init()  {
+	mysqlDb = config.Slice("mysql","dbs");
+	if  len(mysqlDb) == 0 { return }
+
+	charset := config.String("mysql","charset")
+	timeout := config.String("mysql","timeout")
+	readTimeout := config.String("mysql","readTimeout")
+	writeTimeout := config.String("mysql","writeTimeout")
+	maxIdleConns := config.Int("mysql","maxIdleConns")
+	maxOpenConns := config.Int("mysql","maxOpenConns")
+	connMaxLifetime := config.Time("mysql","connMaxLifetime")
+
+	for _ , id := range mysqlDb {
+		register(
+			id,
+			config.String("mysql:"+id, "dsn"),
+			charset, timeout, readTimeout, writeTimeout, maxIdleConns, maxOpenConns, connMaxLifetime,
+		)
+
+		alias := config.String("mysql:"+id, "alias")
+		if alias == "" { alias = id }
+		mysqlAlias[alias] = id
+		mysqlAlias[id] = id
+	}
+
+	// mysql可用
+	isValid = true
+}
 
 type binMysql struct {
 	tracer bingo.Tracer
 	id string
 }
-var mysqlGroup = map[string]*sql.DB{}
-
-
 // 参考 go-sql-driver中dsn_test.go中的例子
-func Register(group, dsn ,charset, timeout, readTimeout , writeTimeout string,
+func register(group, dsn ,charset, timeout, readTimeout , writeTimeout string,
 maxIdleConn , maxOpenConn int , connMaxLifetime time.Duration ){
 	dsn = utils.String.Join(
 		dsn,
@@ -34,19 +67,21 @@ maxIdleConn , maxOpenConn int , connMaxLifetime time.Duration ){
 	db.SetMaxIdleConns(maxIdleConn)
 	db.SetMaxOpenConns(maxOpenConn)
 	db.SetConnMaxLifetime(connMaxLifetime)
-	mysqlGroup[group] = db
+	mysqlCluster[group] = db
 }
 
 func New(trance bingo.Tracer) *binMysql {
 	return &binMysql{
 		tracer:	trance,
-		id:		"db0",
+		id:		mysqlDb[0],
 	}
 }
 
-func (my *binMysql) Use(group string) *binMysql {
-	if _ , ok := mysqlGroup[group]; ok {
-		my.id = group
+func Valid() bool { return isValid }
+
+func (my *binMysql) Use(name string) *binMysql {
+	if id , ok := mysqlAlias[name]; ok {
+		my.id = id
 	}
 	return my
 }
@@ -129,7 +164,7 @@ func (bin *binMysql) Insert(table string, data map[string]string) (lastInsertId,
 }
 
 func (bin *binMysql) pool() *sql.DB {
-	return mysqlGroup[bin.id]
+	return mysqlCluster[bin.id]
 }
 
 func (bin *binMysql) Close() error {
@@ -163,100 +198,6 @@ func queryFormat(rows *sql.Rows) (data []map[string]string) {
 
 
 
-//
-//type BinMysql struct{
-//	*sql.DB
-//}
-//func (bin *BinMysql) Query(sql string)  []map[string]string {
-//	rows, err := bin.DB.Query(sql)
-//	if err != nil {
-//		panic(err.Error())
-//	}
-//	return QueryFormat(rows)
-//}
-//
-//func (bin *BinMysql) Fetch(sql string) (map[string]string) {
-//	rows := bin.Query(sql+" Limit 1")
-//	if len(rows) > 0 {
-//		return rows[0]
-//	}
-//	return nil
-//}
-//
-//func (bin *BinMysql) Execute(sql string) (lastInsertId, affectedRows int64) {
-//    res, err := bin.DB.Exec(sql)
-//    if err != nil {
-//        panic(err.Error())
-//    }
-//	affectedRows, err = res.RowsAffected()
-//    if err != nil {
-//        panic(err.Error())
-//    }
-//    lastInsertId, err = res.LastInsertId()
-//    if err != nil {
-//        panic(err.Error())
-//    }
-//    return
-//}
-//
-//// Prepare的性能低于Execute
-//func (bin *BinMysql) Prepare(sql string, args ...interface{}) (lastInsertId, affectedRows int64){
-//    stm, err := bin.DB.Prepare(sql)
-//    if err != nil {
-//        panic(err.Error())
-//    }
-//    res, err := stm.Exec(args...)
-//    if err != nil {
-//        panic(err.Error())
-//    }
-//	affectedRows, err = res.RowsAffected()
-//    if err != nil {
-//        panic(err.Error())
-//    }
-//
-//    lastInsertId, err = res.LastInsertId()
-//    if err != nil {
-//        panic(err.Error())
-//    }
-//    return
-//}
-//
-//func (bin *BinMysql) Update(table string, data map[string]string, where string) (affectedRows int64){
-//    sql := []string{"UPDATE ",table," SET "}
-//    for k, v := range data {
-//        sql = append(sql, k,"='",v,"'"," , ")
-//    }
-//    sql = sql[:len(sql)-1]
-//    if where != "" {
-//        sql = append(sql, " WHERE ", where)
-//    }
-//    _, affectedRows = bin.Execute(utils.String.Join(sql...))
-//    return
-//}
-//func (bin *BinMysql) Insert(table string, data map[string]string) (lastInsertId, affectedRows int64){
-//    sql := []string{"INSERT INTO ",table," SET "}
-//    for k, v := range data {
-//        sql = append(sql, k,"='",v,"'"," , ")
-//    }
-//    sql = sql[:len(sql)-1]
-//    lastInsertId, affectedRows = bin.Execute(utils.String.Join(sql...))
-//    return
-//}
-////用法
-//// tx := db.Mysql.Begin()
-//// for i := 0; i < 1000; i ++ {
-////     tx.Exec("INSERT INTO user SET username = 'zhangfumu', age = 36")
-//// }
-//// tx.Commit()
-//
-//func (bin *BinMysql) Begin() *sql.Tx {
-//    tx , err := bin.DB.Begin()
-//    if err != nil {
-//        panic(err.Error())
-//    }
-//    return tx
-//}
-//
 
 
 

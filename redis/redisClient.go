@@ -15,7 +15,7 @@ func New(tracer bingo.Tracer) *Redis {
 	return &Redis{
 		tracer:	tracer,
 		t:		"client",
-		id:		"db0",
+		id:		redisDb[0],
 	}
 }
 
@@ -23,7 +23,6 @@ func NewRedisFlexi(tracer bingo.Tracer) *Redis {
 	return &Redis{
 		tracer:	tracer,
 		t:		"flexi",
-		id:		"db0",
 	}
 }
 
@@ -31,14 +30,14 @@ func NewRedisHash(tracer bingo.Tracer) *Redis {
 	return &Redis{
 		tracer:	tracer,
 		t:		"hash",
-		id:		"db0",
 	}
 }
 
+func Valid() bool { return isValid }
 
-func (client *Redis) Use(group string) *Redis {
-	if _ , ok := RedisGroup[group]; ok {
-		client.id = group
+func (client *Redis) Use(name string) *Redis {
+	if id , ok := redisAlias[name]; ok {
+		client.id = id
 	}
 	return client
 }
@@ -59,7 +58,7 @@ func (client *Redis) pool (key string) *goRedis.Client {
 	case "client":
 		id = client.id;  break
 	}
-	return RedisGroup[id]
+	return redisCluster[id]
 }
 
 

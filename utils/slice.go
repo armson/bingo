@@ -70,7 +70,7 @@ func (_ *binSlice) SortStringInterfaceInt(slices []map[string]interface{} , rowK
 		sort.Ints(rows)
 	}
 
-	preValue := 0
+	preValue := -999999999999
 	pos := 0
 	for k , value := range rows {
 		if k != 0 {
@@ -129,6 +129,18 @@ func (_ *binSlice) CombineStringString(arrs []map[string]string, rowKey string) 
 	return rows
 }
 
+//数组去重，但更改了排序
+func (_ *binSlice) Unique(a []string) (ret []string) {
+	sort.Strings(a)
+	aLen := len(a)
+	for i:=0; i < aLen; i++{
+		if (i > 0 && a[i-1] == a[i]) || len(a[i])==0{
+			continue;
+		}
+		ret = append(ret, a[i])
+	}
+	return
+}
 
 
 

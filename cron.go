@@ -19,6 +19,7 @@ type CronHandle func(*Crontab)
 func Cron(handle CronHandle, delay string){
 	d, _ := time.ParseDuration(delay)
 	go func(){
+		defer Recover()
 		for {
 			time.Sleep(d)
 			log := NewCronAccessLog()

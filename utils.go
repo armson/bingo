@@ -27,8 +27,8 @@ var (
 	validLetterAndNumber, _ = regexp.Compile(`^[a-zA-Z0-9]+$`)
 	validMobile, _ 			= regexp.Compile(`^1[34578]\d{9}$`)
 	validChinese,_			= regexp.Compile(`^[\p{Han}]+$`)
-	validChar,_				= regexp.Compile(`^[\p{Han}a-zA-Z0-9]+$`)
-	validUrl,_				= regexp.Compile(`^[a-zA-Z0-9:/.|%&;?=]+$`)
+	validChar,_				= regexp.Compile(`^[\p{Han}a-zA-Z0-9\-_.]+$`)
+	validUrl,_				= regexp.Compile(`^(http|https)://[a-zA-Z0-9:/.|%&;?=_\-]+$`)
 )
 type bingoString struct {
 	value ,defaultValue string
@@ -290,6 +290,10 @@ func (bin *bingoInt)Int() int {
 	}
 	return 0
 }
+func (bin *bingoInt)Float() float64 {
+	return float64(bin.Int())
+}
+
 
 func (bin *bingoInt)handle(param interface{}, operator string) *bingoInt {
 	bin.compares = append(bin.compares,

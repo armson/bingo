@@ -54,9 +54,7 @@ func ResetFileWriter(log BinLog){
         if err != nil {
             fmt.Errorf("Can't Stat %s file: %v",log, err)
         }
-		if log.Rename(file) {
-			NewFileWriter(log)
-		}
+		log.Rename(file)
     }
 }
 func IsTerm(log BinLog) bool {

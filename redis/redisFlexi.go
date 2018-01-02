@@ -5,7 +5,7 @@ import (
     "hash/crc32"  
     "sort"  
     "strconv"  
-    "sync" 
+    "sync"
 )
 const DEFAULT_REPLICAS = 64
 
@@ -15,16 +15,14 @@ var (
     hashRing = []int{}
     nodeCount = 0
     mutex sync.RWMutex
-    mapping = make(map[string]string) //{"db0":"cache1", "db1":"cache2", "db2":"cache3"}
-	reverseMapping = make(map[string]string) //{"cache1":"db0", "cache2":"db1", "cache3":"db2"}
 )
 
-func RedisFlexiRegister() {
-    if len(RedisGroup) < 1 {
+func redisFlexiRegister() {
+    if len(redisCluster) < 1 {
         panic("Redis Consistent Hashing dbs is null.")
     }
-    for id, _:= range RedisGroup {
-		redisFlexiAdd(mapping[id], 1) //默认权重全部为1
+    for id, _:= range redisCluster {
+		redisFlexiAdd(redisAliasReverse[id], 1) //默认权重全部为1
     }
 }
 func redisFlexiAdd(id string , weight int) {
@@ -63,15 +61,7 @@ func redisFlexiUse(key string) string {
     }
     pos = hashRing[pos]
     n := positions[pos]
-    return reverseMapping[n]
-}
-
-// map[string]string{"db0":"cache1", "db1":"cache2", "db2":"cache3"}
-func RedisFlexiAlias(maps map[string]string){
-    mapping = maps
-	for k, v := range maps {
-		reverseMapping[v] = k
-	}
+    return redisAlias[n]
 }
 
 func redisFlexiHashStr(key string) int {

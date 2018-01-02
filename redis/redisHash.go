@@ -6,12 +6,12 @@ import (
 
 var consistentHashing *consistent.Consistent
 
-func RedisHashRegister(){
+func redisHashRegister(){
     c := consistent.New()
-    if len(RedisGroup) < 1 {
+    if len(redisCluster) < 1 {
         panic("Redis Consistent Hashing dbs is null.")
     }
-    for id, _:= range RedisGroup {
+    for id, _:= range redisCluster {
         c.Add(id)
     }
     consistentHashing = c

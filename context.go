@@ -14,6 +14,9 @@ import(
     "github.com/armson/bingo/utils"
 	"github.com/armson/bingo/config"
 	"bytes"
+    "github.com/armson/bingo/attach"
+    "io/ioutil"
+	"encoding/xml"
 )
 
 const (
@@ -29,6 +32,7 @@ const (
 
 var jsonContentType = []string{"application/json; charset=utf-8"}
 var plainContentType = []string{"text/plain; charset=utf-8"}
+var xmlContentType = []string{"application/xml; charset=utf-8"}
 var defaultCookieSetting = map[string]string{
     "path":"/",
     "domain":"/",
@@ -56,6 +60,7 @@ type Context struct {
 
     cookieSetting   map[string]string
     logs    []string
+	body 	[]byte
 }
 var _ context.Context = &Context{}
 
@@ -160,6 +165,30 @@ func (c *Context) PostFormQuery() (string) {
 }
 
 /***********************************/
+/* file文件，相当于PHP中的$_FILE */
+/***********************************/
+func (c *Context) File(field string) (*attach.Attachment, error)  {
+    file, header, err := c.Request.FormFile(field)
+    if err != nil { return  nil, err }
+    defer file.Close()
+    return attach.New(file, header),nil
+}
+
+/***********************************/
+/* 获取POST raw的数据 ,一般应用与json与xml*/
+/***********************************/
+func (c *Context) Body() ([]byte, error) {
+	if c.body != nil {
+		return c.body, nil
+	}
+	body , err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		return nil , err
+	}
+	c.body = body
+	return  c.body, nil
+}
+/***********************************/
 /* cookie的相关读取、设置方法          */
 /***********************************/
 func (c *Context) SetCookiePath(path string) {
@@ -205,6 +234,10 @@ func (c *Context) Cookies() (m map[string]string) {
     return
 }
 
+func (c *Context) ServeFile(filepath string) {
+	http.ServeFile(c.Writer, c.Request, filepath)
+}
+
 /***********************************/
 /* 响应输出方法 String和JSON          */
 /***********************************/
@@ -212,14 +245,17 @@ func (c *Context) String(code int, format string, values ...interface{}) {
     c.Status(code)
 	c.Header("Access-Control-Allow-Origin","*")
 	c.Header("Access-Control-Allow-Methods","POST, GET, OPTIONS, PUT, DELETE, HEAD")
-    writeContentType(c.Writer, plainContentType)
-    if len(values) > 0 {
-        fmt.Fprintf(c.Writer, format, values...)
-    } else {
-        io.WriteString(c.Writer, format)
-    }
+	writeContentType(c.Writer, plainContentType)
+	if len(values) > 0 {
+		format = fmt.Sprintf(format, values...)
+	}
+	io.WriteString(c.Writer, format)
+
+	if config.Bool("default","enableLog") && config.Bool("response","enableLog") {
+		c.Logs("Response", format)
+	}
 }
-func (c *Context) JSON(code int, obj interface{}) {
+func (c *Context) Json(code int, obj interface{}) {
     c.Status(code)
     c.Header("Access-Control-Allow-Origin","*")
     c.Header("Access-Control-Allow-Methods","POST, GET, OPTIONS, PUT, DELETE, HEAD")
@@ -232,11 +268,29 @@ func (c *Context) JSON(code int, obj interface{}) {
 		c.Logs("Response", string(s))
 	}
 }
+func (c *Context) Xml(code int, body interface{}) {
+	c.Status(code)
+	c.Header("Access-Control-Allow-Origin","*")
+	c.Header("Access-Control-Allow-Methods","POST, GET, OPTIONS, PUT, DELETE, HEAD")
+	writeContentType(c.Writer, xmlContentType)
+	encoder := xml.NewEncoder(c.Writer)
+	encoder.Indent("", "    ")
+	if err := encoder.Encode(body); err != nil {
+		panic(err)
+	}
+	if config.Bool("default","enableLog") && config.Bool("response","enableLog") {
+		b , _ := xml.MarshalIndent(body, "", "")
+		c.Logs("Response", string(b))
+	}
+}
 func (c *Context) StringOK(format string, values ...interface{}) {
     c.String(http.StatusOK,format,values...)
 }
-func (c *Context) JsonOK(obj interface{}) {
-    c.JSON(http.StatusOK, obj)
+func (c *Context) JsonOK(body interface{}) {
+    c.Json(http.StatusOK, body)
+}
+func (c *Context) XmlOK(body interface{}) {
+	c.Xml(http.StatusOK, body)
 }
 
 /***********************************/
@@ -308,10 +362,6 @@ func (c *Context) Logs(args ...string) {
 	c.logs = append(c.logs , message)
 }
 
-func (c *Context) File(filepath string) {
-    http.ServeFile(c.Writer, c.Request, filepath)
-}
-
 func (c *Context) Next() {
     c.index++
     s := int8(len(c.handlers))
@@ -337,8 +387,14 @@ func (c *Context) RequestHeaderString() string {
 			buf.WriteString(" ")
 		}
 	}
-	buf.WriteString("Post-Query:")
-	buf.WriteString(c.PostFormQuery())
+	if query := c.PostFormQuery(); query != "" {
+		buf.WriteString("Query:")
+		buf.WriteString(query)
+	}
+	if  len(c.body) > 0 {
+		buf.WriteString(" Body:")
+		buf.WriteString(strings.Replace(string(c.body),"\n","",-1))
+	}
 	return buf.String()
 }
 
@@ -369,6 +425,7 @@ func (c *Context) reset() {
     c.Accepted = nil
     c.cookieSetting = defaultCookieSetting
     c.logs = []string{}
+	c.body = nil
 }
 func (c *Context) HandlerName() string {
     return nameOfFunction(c.handlers.Last())

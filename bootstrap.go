@@ -80,7 +80,6 @@ func init(){
     if err == nil {
         config.Set("configFile", configFile)
     }
-
     if pid == "" {
         pid, _ = config.Get("pid")
     }
